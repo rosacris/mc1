@@ -2,7 +2,7 @@ package org.cifasis.mc1;
 
 /**
  * A model-checker process is the unit of execution in the system.
- * It represents an asynchronous entity with local state.
+ * It represents an asynchronous runnable entity with local state.
  * Note that we use the word process to denote state isolation, however the implementation is based on threads.
  * Created by Cristian on 15/06/15.
  */
@@ -14,15 +14,23 @@ public abstract class MCProcess implements Runnable {
 
     /**
      * Create a new model-checker process.
-     * @param name  the name of the process
+     * @param name the name of the process.
      */
     public MCProcess(String name) {
         this.name = name;
     }
 
     /**
+     * Get the name of the process.
+     * @return the name of the process.
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
      * Get a copy of the process state.
-     * @return  a model-checker state object
+     * @return a model-checker state object.
      */
     public final MCState getMCState() {
         return MCState.copyOf(localMCState);
