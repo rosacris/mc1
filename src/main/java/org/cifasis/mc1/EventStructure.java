@@ -1,0 +1,196 @@
+package org.cifasis.mc1;
+
+import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
+
+/**
+ * Created by Cristian on 16/07/15.
+ */
+public class EventStructure {
+
+    /* Set of events in the structure */
+    private final Map<String, Event> eventSet;
+
+    /* Conflict relation */
+    private final Map<Event, Set<Event>> conflicts;
+
+    /* Initial root event */
+    private Event root;
+
+    public EventStructure() {
+        this.eventSet = Maps.newHashMap();
+        this.conflicts = Maps.newHashMap();
+        this.root = new Event("⊥");
+    }
+
+    public static boolean isConf(Set<Event> events) {
+        for(Event e: events) {
+            if(!events.containsAll(e.getCone()))
+                return false;
+
+            if(!Sets.intersection(e.getDirectConflicts(), events).isEmpty())
+                return false;
+        }
+        return true;
+    }
+
+    public Event newEvent(String name) {
+        if (eventSet.containsKey(name)) {
+            throw new RuntimeException("Event already in structure.");
+        } else {
+            Event newEvent = new Event(name);
+            eventSet.put(name, newEvent);
+            return newEvent;
+        }
+    }
+
+    public Event getRoot() {
+        return root;
+    }
+
+
+    @Override
+    public String toString() {
+        return "< = " + root.getDepsAsString() + " # = " + root.getConflicts();
+    }
+
+    public static class Event {
+        private final String name;
+        private final List<Event> parents;
+        private final List<Event> childs;
+        private final Set<Event> conflicts;
+
+        public Event(String name) {
+            this.name = name;
+            this.parents = Lists.newArrayList();
+            this.childs = Lists.newArrayList();
+            this.conflicts = Sets.newHashSet();
+        }
+
+        public boolean isDependent(final Event that) {
+            return parents.contains(that) || parents.stream().anyMatch(new Predicate<Event>() {
+                public boolean test(Event event) {
+                    return event.isDependent(that);
+                }
+            });
+        }
+
+        public boolean isInConflict(final Event that) {
+            return conflicts.contains(that) || parents.stream().anyMatch(new Predicate<Event>() {
+                public boolean test(Event event) {
+                    return event.isInConflict(that);
+                }
+            });
+        }
+
+        public Event dependsOn(Event that) {
+            if (!that.isDependent(this) && !this.isInConflict(that)) {
+                that.childs.add(this);
+                this.parents.add(that);
+                return this;
+            } else {
+                throw new RuntimeException("Attempt to create a cyclic dependence.");
+            }
+        }
+
+        public Event conflicts(Event that) {
+            this.conflicts.add(that);
+            that.conflicts.add(this);
+            return this;
+        }
+
+        public Set<Event> getDirectConflicts(){
+            return conflicts;
+        }
+
+        public Set<Conflict<Event>> getConflicts() {
+            Set<Conflict<Event>> conflictPairs = Sets.newHashSet();
+            for (Event e : conflicts) {
+                conflictPairs.add(new Conflict(this, e));
+            }
+
+            for (Event e : childs) {
+                conflictPairs.addAll(e.getConflicts());
+            }
+
+            return conflictPairs;
+        }
+
+        public Set<Event> getCone() {
+            Set<Event> cone = Sets.newHashSet();
+            for(Event e: parents) {
+                cone.add(e);
+                cone.addAll(e.getCone());
+            }
+            return cone;
+        }
+
+        public String getDepsAsString() {
+            String deps = "";
+            for (Event e : childs)
+                deps += "(" + name + "," + e + "), ";
+
+            String childDeps = "";
+            for (Event e : childs)
+                childDeps += e.getDepsAsString();
+
+            return deps + childDeps;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Event)) return false;
+            Event event = (Event) o;
+            return Objects.equal(name, event.name);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(name);
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
+    public static class Conflict<T> {
+        private final Set<T> conflict;
+        private final T left;
+        private final T right;
+
+        public Conflict(T left, T right) {
+            this.conflict = Sets.newHashSet(left, right);
+            this.left = left;
+            this.right = right;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Conflict)) return false;
+            Conflict<?> conflict1 = (Conflict<?>) o;
+            return Objects.equal(conflict, conflict1.conflict);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(conflict);
+        }
+
+        @Override
+        public String toString() {
+            return "{" + left + "," + right + "}";
+        }
+    }
+
+}
