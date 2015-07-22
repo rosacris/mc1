@@ -18,27 +18,45 @@ public class EventStructure {
     /* Set of events in the structure */
     private final Map<String, Event> eventSet;
 
-    /* Conflict relation */
-    private final Map<Event, Set<Event>> conflicts;
-
     /* Initial root event */
     private Event root;
 
     public EventStructure() {
         this.eventSet = Maps.newHashMap();
-        this.conflicts = Maps.newHashMap();
         this.root = new Event("⊥");
     }
 
     public static boolean isConf(Set<Event> events) {
-        for(Event e: events) {
-            if(!events.containsAll(e.getCone()))
+        for (Event e : events) {
+            if (!events.containsAll(e.getCone()))
                 return false;
 
-            if(!Sets.intersection(e.getDirectConflicts(), events).isEmpty())
+            if (!Sets.intersection(e.getDirectConflicts(), events).isEmpty())
                 return false;
         }
         return true;
+    }
+
+    public Set<Event> getExtensions(Set<Event> conf) {
+        Set<Event> extensions = Sets.newTreeSet();
+
+        if (!EventStructure.isConf(conf))
+            throw new RuntimeException("The argument is not a valid configuration.");
+
+        for (final Event e : this.eventSet.values()) {
+            if (!conf.contains(e) && conf.containsAll(e.getCone()) && !conf.stream().anyMatch(new Predicate<Event>() {
+                public boolean test(Event event) {
+                    return e.isInConflict(event);
+                }
+            })) {
+                extensions.add(e);
+            }
+        }
+        return extensions;
+    }
+
+    public boolean isMaximalConf(Set<Event> events) {
+        return isConf(events) && getExtensions(events).isEmpty();
     }
 
     public Event newEvent(String name) {
@@ -55,13 +73,16 @@ public class EventStructure {
         return root;
     }
 
+    public Set<Event> getEventSet() {
+        return Sets.newTreeSet(eventSet.values());
+    }
 
     @Override
     public String toString() {
         return "< = " + root.getDepsAsString() + " # = " + root.getConflicts();
     }
 
-    public static class Event {
+    public static class Event implements Comparable<Event> {
         private final String name;
         private final List<Event> parents;
         private final List<Event> childs;
@@ -106,7 +127,7 @@ public class EventStructure {
             return this;
         }
 
-        public Set<Event> getDirectConflicts(){
+        public Set<Event> getDirectConflicts() {
             return conflicts;
         }
 
@@ -125,11 +146,15 @@ public class EventStructure {
 
         public Set<Event> getCone() {
             Set<Event> cone = Sets.newHashSet();
-            for(Event e: parents) {
+            for (Event e : parents) {
                 cone.add(e);
                 cone.addAll(e.getCone());
             }
             return cone;
+        }
+
+        public List<Event> getChilds() {
+            return childs;
         }
 
         public String getDepsAsString() {
@@ -155,6 +180,10 @@ public class EventStructure {
         @Override
         public int hashCode() {
             return Objects.hashCode(name);
+        }
+
+        public int compareTo(Event o) {
+            return name.compareTo(o.name);
         }
 
         @Override
