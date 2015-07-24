@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Created by Cristian on 16/07/15.
@@ -44,19 +45,48 @@ public class EventStructure {
             throw new RuntimeException("The argument is not a valid configuration.");
 
         for (final Event e : this.eventSet.values()) {
-            if (!conf.contains(e) && conf.containsAll(e.getCone()) && !conf.stream().anyMatch(new Predicate<Event>() {
-                public boolean test(Event event) {
-                    return e.isInConflict(event);
-                }
-            })) {
+            if (!conf.contains(e) && conf.containsAll(e.getCone())) {
                 extensions.add(e);
             }
         }
         return extensions;
     }
 
+    public Set<Event> getEnabled(Set<Event> conf) {
+        Set<Event> enabledEvents = Sets.newTreeSet();
+
+        if (!EventStructure.isConf(conf))
+            throw new RuntimeException("The argument is not a valid configuration.");
+
+        for (final Event e : this.getExtensions(conf)) {
+            if (!conf.stream().anyMatch(new Predicate<Event>() {
+                public boolean test(Event event) {
+                    return e.isInConflict(event);
+                }
+            })) {
+                enabledEvents.add(e);
+            }
+        }
+        return enabledEvents;
+    }
+
     public boolean isMaximalConf(Set<Event> events) {
-        return isConf(events) && getExtensions(events).isEmpty();
+        return isConf(events) && getEnabled(events).isEmpty();
+    }
+
+    public static Set<Event> getMaximalEvents(final Set<Event> conf) {
+        if (!EventStructure.isConf(conf))
+            throw new RuntimeException("The argument is not a valid configuration.");
+
+        return conf.stream().filter(new Predicate<Event>() {
+            public boolean test(final Event maximalEvent) {
+                return maximalEvent.getChilds().stream().allMatch(new Predicate<Event>() {
+                    public boolean test(Event childEvent) {
+                        return !conf.contains(childEvent);
+                    }
+                });
+            }
+        }).collect(Collectors.<Event>toSet());
     }
 
     public Event newEvent(String name) {
@@ -103,8 +133,12 @@ public class EventStructure {
             });
         }
 
+        public boolean isInDirectConflict(Event that) {
+            return conflicts.contains(that);
+        }
+
         public boolean isInConflict(final Event that) {
-            return conflicts.contains(that) || parents.stream().anyMatch(new Predicate<Event>() {
+            return isInDirectConflict(that) || parents.stream().anyMatch(new Predicate<Event>() {
                 public boolean test(Event event) {
                     return event.isInConflict(that);
                 }
@@ -221,5 +255,4 @@ public class EventStructure {
             return "{" + left + "," + right + "}";
         }
     }
-
 }

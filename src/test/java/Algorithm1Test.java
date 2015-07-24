@@ -25,7 +25,7 @@ public class Algorithm1Test {
         EventStructure.Event e7 = es.newEvent("e7").dependsOn(es.getRoot()).conflicts(e5);
         EventStructure.Event e8 = es.newEvent("e8").dependsOn(e7);
 
-        Algorithm1 alg1 = new Algorithm1(es);
+        Algorithm1 alg1 = new Algorithm1(es, Algorithm1.LFS_BOUND);
         Set<EventStructure.Event> C = Sets.newTreeSet();
         C.add(es.getRoot());
         alg1.explore(C, new TreeSet<EventStructure.Event>(), new TreeSet<EventStructure.Event>());
