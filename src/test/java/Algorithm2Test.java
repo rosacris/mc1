@@ -1,17 +1,22 @@
 import com.google.common.collect.Sets;
-import org.cifasis.mc1.Algorithm1;
+import org.antlr.v4.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.cifasis.mc1.Algorithm2;
 import org.cifasis.mc1.EventStructure;
+import org.cifasis.mc1.PoetLexer;
+import org.cifasis.mc1.PoetParser;
+import org.cifasis.mc1.poet.org.cifasis.mc1.PoetInput;
 import org.junit.Test;
 
-import java.util.HashSet;
+import java.io.IOException;
 import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Created by cristian on 22/07/15.
+ * Created by cristian on 29/07/15.
  */
-public class Algorithm1Test {
+public class Algorithm2Test {
 
     @Test
     public void test1() {
@@ -26,7 +31,7 @@ public class Algorithm1Test {
         EventStructure.Event e7 = es.newEvent("e7").dependsOn(es.getRoot()).conflicts(e5);
         EventStructure.Event e8 = es.newEvent("e8").dependsOn(e7);
 
-        Algorithm1 algorithm = new Algorithm1(es);
+        Algorithm2 algorithm = new Algorithm2(es, 1);
         Set<EventStructure.Event> C = Sets.newTreeSet();
         C.add(es.getRoot());
         algorithm.explore(C, new TreeSet<EventStructure.Event>(), new TreeSet<EventStructure.Event>());
@@ -48,11 +53,29 @@ public class Algorithm1Test {
         EventStructure.Event e9 = es.newEvent("e9").dependsOn(e7).conflicts(e4);
         EventStructure.Event e10 = es.newEvent("e10").dependsOn(e9);
 
-        Algorithm1 algorithm = new Algorithm1(es);
+        Algorithm2 algorithm = new Algorithm2(es, 1);
         Set<EventStructure.Event> C = Sets.newTreeSet();
         C.add(es.getRoot());
         algorithm.explore(C, new TreeSet<EventStructure.Event>(), new TreeSet<EventStructure.Event>());
-
     }
 
+    @Test
+    public void test3() throws IOException {
+        EventStructure es = new EventStructure();
+
+        ANTLRInputStream input = new ANTLRInputStream(getClass().getResourceAsStream("poetInput.txt"));
+        PoetLexer lexer = new PoetLexer(input);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        PoetParser parser = new PoetParser(tokens);
+        ParseTree tree = parser.events();
+        PoetInput poetInput = new PoetInput(es);
+        poetInput.visit(tree);
+
+        System.out.println(es.toString());
+
+        Algorithm2 algorithm = new Algorithm2(es, 2);
+        Set<EventStructure.Event> C = Sets.newTreeSet();
+        C.add(es.getRoot());
+        algorithm.explore(C, new TreeSet<EventStructure.Event>(), new TreeSet<EventStructure.Event>());
+    }
 }

@@ -107,6 +107,10 @@ public class EventStructure {
         return Sets.newTreeSet(eventSet.values());
     }
 
+    public Event getEventByName(String name) {
+        return eventSet.get(name);
+    }
+
     @Override
     public String toString() {
         return "< = " + root.getDepsAsString() + " # = " + root.getConflicts();
@@ -123,6 +127,10 @@ public class EventStructure {
             this.parents = Lists.newArrayList();
             this.childs = Lists.newArrayList();
             this.conflicts = Sets.newHashSet();
+        }
+
+        public String getName() {
+            return name;
         }
 
         public boolean isDependent(final Event that) {
