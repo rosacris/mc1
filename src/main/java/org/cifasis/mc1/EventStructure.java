@@ -24,7 +24,7 @@ public class EventStructure {
 
     public EventStructure() {
         this.eventSet = Maps.newHashMap();
-        this.root = new Event("⊥");
+        this.root = new Event("0");
     }
 
     public static boolean isConf(Set<Event> events) {
@@ -113,7 +113,7 @@ public class EventStructure {
 
     @Override
     public String toString() {
-        return "< = " + root.getDepsAsString() + " # = " + root.getConflicts();
+        return "< = " + root.getDepsAsString(Sets.<Event>newHashSet()) + " # = " + root.getConflicts();
     }
 
     public static class Event implements Comparable<Event> {
@@ -199,16 +199,45 @@ public class EventStructure {
             return childs;
         }
 
-        public String getDepsAsString() {
+        public String getDepsAsString(Set<Event> visited) {
+
             String deps = "";
-            for (Event e : childs)
-                deps += "(" + name + "," + e + "), ";
+            for (Event child : this.getChilds())
+                deps += "(" + this.getName() + "," + child + "), ";
+
+            visited.add(this);
 
             String childDeps = "";
-            for (Event e : childs)
-                childDeps += e.getDepsAsString();
+            for (Event e : childs) {
+                if(!visited.contains(e))
+                childDeps += e.getDepsAsString(visited);
+            }
 
             return deps + childDeps;
+        }
+
+        public String getDepsAsDot(Set<Event> visited){
+            String deps = "";
+            for (Event child : this.getChilds())
+                deps += this.getName() + " -> " + child + "\n";
+
+            visited.add(this);
+
+            String childDeps = "";
+            for (Event e : childs) {
+                if(!visited.contains(e))
+                    childDeps += e.getDepsAsDot(visited);
+            }
+
+            return deps + childDeps;
+        }
+
+        public String getConflictAsDot(){
+            String conf = "";
+            for (Conflict<Event> conflict : this.getConflicts())
+                conf += conflict.left + " -> " + conflict.right + "\n";
+
+            return conf;
         }
 
         @Override
@@ -225,7 +254,7 @@ public class EventStructure {
         }
 
         public int compareTo(Event o) {
-            return name.compareTo(o.name);
+            return Integer.valueOf(name).compareTo(Integer.valueOf(o.name));
         }
 
         @Override

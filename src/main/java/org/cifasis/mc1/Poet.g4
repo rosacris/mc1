@@ -24,7 +24,7 @@ tr_id : INT ;
 
 acts : '[' ( actName ( ',' actName )* )? ']' ;
 
-actName : ID ('(' ID STRING INT ')')? ;
+actName : ID ('(' ID STRING INT? ')')? ;
 
 
 // Use semicolon as statement end

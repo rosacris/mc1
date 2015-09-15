@@ -45,7 +45,7 @@ public class Algorithm1 {
             })) {
                 return C;
             }else {
-                for (EventStructure.Event child : es.getEnabled(C)) {
+                for (EventStructure.Event child : Sets.difference(es.getEnabled(C), D)) {
                     Set<EventStructure.Event> recCall = searchAlt(Sets.union(C, Sets.newHashSet(child)), D);
                     if (!recCall.isEmpty())
                         return recCall;

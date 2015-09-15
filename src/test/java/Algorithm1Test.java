@@ -1,10 +1,15 @@
 import com.google.common.collect.Sets;
+import org.antlr.v4.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.cifasis.mc1.Algorithm1;
-import org.cifasis.mc1.Algorithm2;
 import org.cifasis.mc1.EventStructure;
+import org.cifasis.mc1.PoetLexer;
+import org.cifasis.mc1.PoetParser;
+import org.cifasis.mc1.poet.org.cifasis.mc1.PoetInput;
 import org.junit.Test;
 
-import java.util.HashSet;
+import java.io.IOException;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -55,4 +60,24 @@ public class Algorithm1Test {
 
     }
 
+    @Test
+    public void test3() throws IOException {
+        EventStructure es = new EventStructure();
+
+        ANTLRInputStream input = new ANTLRInputStream(getClass().getResourceAsStream("poet_ssb.txt"));
+        PoetLexer lexer = new PoetLexer(input);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        org.cifasis.mc1.PoetParser parser = new PoetParser(tokens);
+        ParseTree tree = parser.events();
+        PoetInput poetInput = new PoetInput(es);
+        poetInput.visit(tree);
+
+        System.out.println(es.toString());
+
+        Algorithm1 algorithm = new Algorithm1(es);
+        Set<EventStructure.Event> C = Sets.newTreeSet();
+        C.add(es.getRoot());
+        algorithm.explore(C, new TreeSet<EventStructure.Event>(), new TreeSet<EventStructure.Event>());
+
+    }
 }

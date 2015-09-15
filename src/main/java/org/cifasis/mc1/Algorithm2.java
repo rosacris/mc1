@@ -2,9 +2,9 @@ package org.cifasis.mc1;
 
 import com.google.common.collect.Sets;
 
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Created by cristian on 29/07/15.
@@ -13,12 +13,13 @@ public class Algorithm2 {
 
     private final EventStructure es;                              /* the event structure to explore by the algorithm. */
     private final Set<EventStructure.Event> E;                    /* the set of events discovered by the algorithm. */
-    private final Set<EventStructure.Event> BE;                   /* the events discovered but suspended due the bound */
+    private Set<EventStructure.Event> BE;                   /* the events discovered but suspended due the bound */
     private final Predicate<Set<EventStructure.Event>> contPred;  /* a predicate to decide the backtracking. */
     private final int lfsBound;
 
     /**
      * Construct a new instance of the exploration algorithm for a given event structure using the supplied lfs bound.
+     *
      * @param es
      * @param lfsBound
      */
@@ -40,7 +41,7 @@ public class Algorithm2 {
     };
 
     /**
-     * This predicate enforces a LFS-bound of max(C) <= 1.
+     * This predicate enforces a LFS-bound of max(C) <= lfsBound.
      */
     public final Predicate<Set<EventStructure.Event>> LFS_BOUND = new Predicate<Set<EventStructure.Event>>() {
         public boolean test(Set<EventStructure.Event> conf) {
@@ -57,24 +58,40 @@ public class Algorithm2 {
      * @return a valid alternative configuration, or empty set if not found.
      */
     private Set<EventStructure.Event> searchAlt(final Set<EventStructure.Event> C, final Set<EventStructure.Event> D) {
-        if(D.stream().allMatch(new Predicate<EventStructure.Event>() {
-            public boolean test(final EventStructure.Event eventD) {
-                return C.stream().anyMatch(new Predicate<EventStructure.Event>() {
-                    public boolean test(EventStructure.Event eventC) {
-                        return eventC.isInConflict(eventD);
+        for (final EventStructure.Event child : es.getEnabled(C)) {
+            if (contPred.test(Sets.union(C, Sets.newHashSet(child)))) {
+                if (D.stream().allMatch(new Predicate<EventStructure.Event>() {
+                    public boolean test(final EventStructure.Event eventD) {
+                        return Sets.union(C, Sets.newHashSet(child)).stream().anyMatch(new Predicate<EventStructure.Event>() {
+                            public boolean test(EventStructure.Event eventC) {
+                                return eventC.isInConflict(eventD);
+                            }
+                        });
                     }
-                });
-            }
-        })) {
-            return C;
-        }else {
-            for (EventStructure.Event child : es.getEnabled(C)) {
-                Set<EventStructure.Event> recCall = searchAlt(Sets.union(C, Sets.newHashSet(child)), D);
-                if (!recCall.isEmpty())
-                    return recCall;
+                }) || (!D.contains(child) && BE.contains(child))) {
+                    return Sets.union(C, Sets.newHashSet(child));
+                }
             }
         }
         return Sets.newHashSet();
+    }
+
+    private Set<EventStructure.Event> getEnabledInBound(final Set<EventStructure.Event> conf) {
+        Set<EventStructure.Event> enabledEvents = es.getEnabled(conf);
+        return enabledEvents.stream().filter(new Predicate<EventStructure.Event>() {
+            public boolean test(EventStructure.Event event) {
+                return contPred.test(Sets.union(conf, Sets.newHashSet(event)));
+            }
+        }).collect(Collectors.<EventStructure.Event>toSet());
+    }
+
+    private Set<EventStructure.Event> getBounded(final Set<EventStructure.Event> conf) {
+        Set<EventStructure.Event> enabledEvents = es.getEnabled(conf);
+        return enabledEvents.stream().filter(new Predicate<EventStructure.Event>() {
+            public boolean test(EventStructure.Event event) {
+                return !contPred.test(Sets.union(conf, Sets.newHashSet(event)));
+            }
+        }).collect(Collectors.<EventStructure.Event>toSet());
     }
 
     /**
@@ -84,43 +101,33 @@ public class Algorithm2 {
      * @param D a set of disabled events.
      * @param A a set of events to steer the exploration.
      */
+
     public void explore(final Set<EventStructure.Event> C, final Set<EventStructure.Event> D, Set<EventStructure.Event> A) {
 
         System.out.println(C + " | " + D + " | " + A + " ~~ " + BE);
 
-        if (es.isMaximalConf(Sets.difference(es.getEnabled(C), D)))
+        BE = Sets.difference(getBounded(C), D);
+
+        // Check if it is a maximal configuration for the bound.
+        if (Sets.difference(getEnabledInBound(C), D).isEmpty())
             return;
 
         E.addAll(es.getExtensions(C));
 
         Set<EventStructure.Event> e;
-        if (!A.isEmpty()) {
-            e = Sets.newHashSet(Sets.difference(Sets.intersection(es.getEnabled(C), A), D).iterator().next());
+        if (A.isEmpty()) {
+            e = Sets.newHashSet(Sets.difference(getEnabledInBound(C), D).iterator().next());
         } else {
-            e = Sets.newHashSet(Sets.difference(es.getEnabled(C), D).iterator().next());
+            e = Sets.newHashSet(Sets.difference(Sets.intersection(es.getEnabled(C), A), D).iterator().next());
         }
 
-        Set<EventStructure.Event> boundedEvents = Sets.newTreeSet();
-        if (contPred.test(Sets.union(C, e)))
-            explore(Sets.union(C, e), D, Sets.difference(A, e));
-        else
-            BE.addAll(e);
+        explore(Sets.union(C, e), D, Sets.difference(A, e));
 
         Set<EventStructure.Event> altConf = searchAlt(C, Sets.union(D, e));
         if (!altConf.isEmpty()) {
+
             explore(C, Sets.union(D, e), Sets.newHashSet(Sets.difference(altConf, C).iterator().next()));
         }
 
-        Optional<EventStructure.Event> retryConf = BE.stream().filter(new Predicate<EventStructure.Event>() {
-            public boolean test(EventStructure.Event event) {
-                Set<EventStructure.Event> maybeConf = Sets.union(C, Sets.newHashSet(event));
-                return !D.contains(event) && EventStructure.isConf(maybeConf) && contPred.test(maybeConf);
-            }
-        }).findFirst();
-
-        if(retryConf.isPresent()) {
-            BE.remove(retryConf.get());
-            explore(C, Sets.union(D, e), Sets.difference(Sets.newHashSet(retryConf.get()), C));
-        }
     }
 }

@@ -42,18 +42,12 @@ public class Algorithm2Test {
     public void test2() {
         EventStructure es = new EventStructure();
 
-        EventStructure.Event e1 = es.newEvent("e1").dependsOn(es.getRoot());
-        EventStructure.Event e2 = es.newEvent("e2").dependsOn(e1);
-        EventStructure.Event e3 = es.newEvent("e3").dependsOn(e1);
-        EventStructure.Event e4 = es.newEvent("e4").dependsOn(es.getRoot()).conflicts(e1);
-        EventStructure.Event e5 = es.newEvent("e5").dependsOn(e4);
-        EventStructure.Event e6 = es.newEvent("e6").dependsOn(e5);
-        EventStructure.Event e7 = es.newEvent("e7").dependsOn(es.getRoot()).conflicts(e5).conflicts(e1);
-        EventStructure.Event e8 = es.newEvent("e8").dependsOn(e4).dependsOn(e7);
-        EventStructure.Event e9 = es.newEvent("e9").dependsOn(e7).conflicts(e4);
-        EventStructure.Event e10 = es.newEvent("e10").dependsOn(e9);
+        EventStructure.Event e1 = es.newEvent("1").dependsOn(es.getRoot());
+        EventStructure.Event e2 = es.newEvent("2").dependsOn(es.getRoot());
+        EventStructure.Event e3 = es.newEvent("3").dependsOn(es.getRoot());
+        EventStructure.Event e4 = es.newEvent("4").dependsOn(e2).dependsOn(e3);
 
-        Algorithm2 algorithm = new Algorithm2(es, 1);
+        Algorithm2 algorithm = new Algorithm2(es, 2);
         Set<EventStructure.Event> C = Sets.newTreeSet();
         C.add(es.getRoot());
         algorithm.explore(C, new TreeSet<EventStructure.Event>(), new TreeSet<EventStructure.Event>());
@@ -63,7 +57,7 @@ public class Algorithm2Test {
     public void test3() throws IOException {
         EventStructure es = new EventStructure();
 
-        ANTLRInputStream input = new ANTLRInputStream(getClass().getResourceAsStream("poetInput.txt"));
+        ANTLRInputStream input = new ANTLRInputStream(getClass().getResourceAsStream("poet_ssb.txt"));
         PoetLexer lexer = new PoetLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         PoetParser parser = new PoetParser(tokens);
@@ -72,6 +66,9 @@ public class Algorithm2Test {
         poetInput.visit(tree);
 
         System.out.println(es.toString());
+//        System.out.println(es.getRoot().getDepsAsDot(Sets.<EventStructure.Event>newHashSet()));
+//        System.out.println("conflicts");
+//        System.out.println(es.getRoot().getConflictAsDot());
 
         Algorithm2 algorithm = new Algorithm2(es, 2);
         Set<EventStructure.Event> C = Sets.newTreeSet();
