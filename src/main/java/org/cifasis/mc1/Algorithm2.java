@@ -2,9 +2,9 @@ package org.cifasis.mc1;
 
 import com.google.common.collect.Sets;
 
+import java.util.Collections;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 /**
  * Created by cristian on 29/07/15.
@@ -13,13 +13,31 @@ public class Algorithm2 {
 
     private final EventStructure es;                              /* the event structure to explore by the algorithm. */
     private final Set<EventStructure.Event> E;                    /* the set of events discovered by the algorithm. */
-    private Set<EventStructure.Event> BE;                   /* the events discovered but suspended due the bound */
+    private Set<EventStructure.Event> V;                          /* the set of visited events */
     private final Predicate<Set<EventStructure.Event>> contPred;  /* a predicate to decide the backtracking. */
     private final int lfsBound;
 
     /**
-     * Construct a new instance of the exploration algorithm for a given event structure using the supplied lfs bound.
+     * Construct a new instance of the exploration algorithm for a given event structure using the supplied m and n
+     * parameters.
      *
+     * @param m        maximum parallel degree of the event structure
+     * @param n        communication degree of the event structure
+     * @param es
+     * @param lfsBound
+     */
+    public Algorithm2(EventStructure es, int m, int n) {
+        this.es = es;
+        this.contPred = LFS_BOUND;
+        this.E = Sets.newHashSet(es.getRoot());                   /* Add ⊥ to the set of discovered events */
+        this.V = Sets.newHashSet(es.getRoot());
+        this.lfsBound = computeBound(m, n);
+    }
+
+    /**
+     * Construct a new instance of the exploration algorithm for a given event structure using the supplied bound.
+     *
+     * @param lfsBound LFS-number to use as bound
      * @param es
      * @param lfsBound
      */
@@ -27,7 +45,7 @@ public class Algorithm2 {
         this.es = es;
         this.contPred = LFS_BOUND;
         this.E = Sets.newHashSet(es.getRoot());                   /* Add ⊥ to the set of discovered events */
-        this.BE = Sets.newTreeSet();
+        this.V = Sets.newHashSet(es.getRoot());
         this.lfsBound = lfsBound;
     }
 
@@ -50,6 +68,14 @@ public class Algorithm2 {
         }
     };
 
+    public Set<EventStructure.Event> getE() {
+        return E;
+    }
+
+    public Set<EventStructure.Event> getV(){
+        return V;
+    }
+
     /**
      * Search for alternative configurations that contain a given configuration and remain to be explored.
      *
@@ -58,40 +84,16 @@ public class Algorithm2 {
      * @return a valid alternative configuration, or empty set if not found.
      */
     private Set<EventStructure.Event> searchAlt(final Set<EventStructure.Event> C, final Set<EventStructure.Event> D) {
-        for (final EventStructure.Event child : es.getEnabled(C)) {
-            if (contPred.test(Sets.union(C, Sets.newHashSet(child)))) {
-                if (D.stream().allMatch(new Predicate<EventStructure.Event>() {
-                    public boolean test(final EventStructure.Event eventD) {
-                        return Sets.union(C, Sets.newHashSet(child)).stream().anyMatch(new Predicate<EventStructure.Event>() {
-                            public boolean test(EventStructure.Event eventC) {
-                                return eventC.isInConflict(eventD);
-                            }
-                        });
-                    }
-                }) || (!D.contains(child) && BE.contains(child))) {
-                    return Sets.union(C, Sets.newHashSet(child));
+        for (final EventStructure.Event event : Sets.difference(Sets.intersection(es.getEnabled(C), E), D)) {
+            Set<EventStructure.Event> newC = Sets.union(C, Sets.newHashSet(event));
+            if (contPred.test(newC)) {
+                Set<EventStructure.Event> altConf = searchAlt(newC, D);
+                if (!Sets.difference(altConf, V).isEmpty()) {
+                    return altConf;
                 }
             }
         }
-        return Sets.newHashSet();
-    }
-
-    private Set<EventStructure.Event> getEnabledInBound(final Set<EventStructure.Event> conf) {
-        Set<EventStructure.Event> enabledEvents = es.getEnabled(conf);
-        return enabledEvents.stream().filter(new Predicate<EventStructure.Event>() {
-            public boolean test(EventStructure.Event event) {
-                return contPred.test(Sets.union(conf, Sets.newHashSet(event)));
-            }
-        }).collect(Collectors.<EventStructure.Event>toSet());
-    }
-
-    private Set<EventStructure.Event> getBounded(final Set<EventStructure.Event> conf) {
-        Set<EventStructure.Event> enabledEvents = es.getEnabled(conf);
-        return enabledEvents.stream().filter(new Predicate<EventStructure.Event>() {
-            public boolean test(EventStructure.Event event) {
-                return !contPred.test(Sets.union(conf, Sets.newHashSet(event)));
-            }
-        }).collect(Collectors.<EventStructure.Event>toSet());
+        return C;
     }
 
     /**
@@ -103,31 +105,47 @@ public class Algorithm2 {
      */
 
     public void explore(final Set<EventStructure.Event> C, final Set<EventStructure.Event> D, Set<EventStructure.Event> A) {
-
-        System.out.println(C + " | " + D + " | " + A + " ~~ " + BE);
-
-        BE = Sets.difference(getBounded(C), D);
-
-        // Check if it is a maximal configuration for the bound.
-        if (Sets.difference(getEnabledInBound(C), D).isEmpty())
-            return;
-
         E.addAll(es.getExtensions(C));
 
-        Set<EventStructure.Event> e;
-        if (A.isEmpty()) {
-            e = Sets.newHashSet(Sets.difference(getEnabledInBound(C), D).iterator().next());
+        if (!contPred.test(C)) {
+            System.out.println();
+            return;
+        }
+
+        System.out.println("C=" + C + " | D=" + D + " | A=" + A + " | en=" + es.getEnabled(C) + " | E=" + E);
+
+        V.addAll(C);
+
+        Set<EventStructure.Event> enC = es.getEnabled(C);
+
+        if (Sets.difference(enC, D).isEmpty()) {
+            System.out.println();
+            return;
+        }
+
+        EventStructure.Event e;
+        if (!A.isEmpty()) {
+            e = Sets.intersection(enC, A).stream().sorted((e1, e2) -> Integer.compare(EventStructure.getEventDetph(C, e2), EventStructure.getEventDetph(C, e1))).findFirst().get();
         } else {
-            e = Sets.newHashSet(Sets.difference(Sets.intersection(es.getEnabled(C), A), D).iterator().next());
+            e = Sets.difference(enC, D).stream().sorted((e1, e2) -> Integer.compare(EventStructure.getEventDetph(C, e2), EventStructure.getEventDetph(C, e1))).findFirst().get();
         }
 
-        explore(Sets.union(C, e), D, Sets.difference(A, e));
+        Set<EventStructure.Event> eSet = Collections.singleton(e);
+        explore(Sets.union(C, eSet), D, Sets.difference(A, eSet));
 
-        Set<EventStructure.Event> altConf = searchAlt(C, Sets.union(D, e));
-        if (!altConf.isEmpty()) {
-
-            explore(C, Sets.union(D, e), Sets.newHashSet(Sets.difference(altConf, C).iterator().next()));
+        Set<EventStructure.Event> altConf = searchAlt(C, Sets.union(D, eSet));
+        if (!Sets.difference(altConf, C).isEmpty()) {
+            explore(C, Sets.union(D, eSet), Sets.difference(altConf, C));
         }
 
+        if (E.equals(V)) {
+            System.out.println("ES events count: " + es.getEventSet().size());
+            System.out.println("Visited events count: " + this.getV().size());
+            throw new RuntimeException();
+        }
+    }
+
+    public static int computeBound(int m, int n) {
+        return ((int) ((n - 1) * (Math.log(m) / Math.log(n))) + 1);
     }
 }

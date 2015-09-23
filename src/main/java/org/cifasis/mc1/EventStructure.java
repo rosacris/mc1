@@ -1,10 +1,12 @@
 package org.cifasis.mc1;
 
 import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,6 +27,7 @@ public class EventStructure {
     public EventStructure() {
         this.eventSet = Maps.newHashMap();
         this.root = new Event("0");
+        eventSet.put("0", this.root);
     }
 
     public static boolean isConf(Set<Event> events) {
@@ -89,6 +92,27 @@ public class EventStructure {
         }).collect(Collectors.<Event>toSet());
     }
 
+    /**
+     * Get the depth of an event in a given configuration
+     * @param conf  the configuration
+     * @param event the event
+     * @return      the depth of the event in the configuration
+     */
+    public static int getEventDetph(Set<Event> conf, Event event) {
+        if(event.getParents().isEmpty())
+            return 0;
+
+        int minParentDepth = Integer.MAX_VALUE;
+        for(Event parent : event.getParents()){
+            if(conf.contains(parent)){
+                int parentDepth = getEventDetph(conf, parent);
+                if(parentDepth < minParentDepth)
+                    minParentDepth = parentDepth;
+            }
+        }
+        return minParentDepth + 1;
+    }
+
     public Event newEvent(String name) {
         if (eventSet.containsKey(name)) {
             throw new RuntimeException("Event already in structure.");
@@ -111,6 +135,32 @@ public class EventStructure {
         return eventSet.get(name);
     }
 
+    /**
+     * Computes the width of a given configuration (size of its maximum anti-chain) using an exhaustive search approach.
+     * It takes a parameter that represents the maximum expected width to bound and speed up the search.
+     * It generates all 'maxWidth'-combinations of the events in the configuration and then filters out those that
+     * contain any pair of dependent events. The ones remaining are all the maximal anti-chains from which it takes the
+     * longest one.
+     * @param conf      the configuration
+     * @param maxWidth  the maximum expected width
+     * @return          the width of the configuration
+     */
+    public static Integer getWidth(Set<Event> conf, int maxWidth) {
+        int confWidth = Sets.cartesianProduct(Collections.nCopies(maxWidth, conf)).stream().map(set -> ImmutableSet.copyOf(set)).filter(new Predicate<Set<Event>>() {
+            public boolean test(Set<Event> eventSet) {
+                return Sets.cartesianProduct(eventSet, eventSet).stream().allMatch(new Predicate<List<Event>>() {
+                    public boolean test(List<Event> events) {
+                        Event a = events.get(0);
+                        Event b = events.get(1);
+                        return (!a.isDependent(b) && !b.isDependent(a)) || (a.equals(b));
+                    }
+                });
+            }
+        }).mapToInt(Set::size).max().orElse(0);
+
+        return confWidth;
+    }
+
     @Override
     public String toString() {
         return "< = " + root.getDepsAsString(Sets.<Event>newHashSet()) + " # = " + root.getConflicts();
@@ -131,6 +181,10 @@ public class EventStructure {
 
         public String getName() {
             return name;
+        }
+
+        public List<Event> getParents() {
+            return parents;
         }
 
         public boolean isDependent(final Event that) {
@@ -209,14 +263,14 @@ public class EventStructure {
 
             String childDeps = "";
             for (Event e : childs) {
-                if(!visited.contains(e))
-                childDeps += e.getDepsAsString(visited);
+                if (!visited.contains(e))
+                    childDeps += e.getDepsAsString(visited);
             }
 
             return deps + childDeps;
         }
 
-        public String getDepsAsDot(Set<Event> visited){
+        public String getDepsAsDot(Set<Event> visited) {
             String deps = "";
             for (Event child : this.getChilds())
                 deps += this.getName() + " -> " + child + "\n";
@@ -225,14 +279,14 @@ public class EventStructure {
 
             String childDeps = "";
             for (Event e : childs) {
-                if(!visited.contains(e))
+                if (!visited.contains(e))
                     childDeps += e.getDepsAsDot(visited);
             }
 
             return deps + childDeps;
         }
 
-        public String getConflictAsDot(){
+        public String getConflictAsDot() {
             String conf = "";
             for (Conflict<Event> conflict : this.getConflicts())
                 conf += conflict.left + " -> " + conflict.right + "\n";
