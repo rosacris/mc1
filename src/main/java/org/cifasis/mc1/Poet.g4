@@ -14,7 +14,7 @@ icnf : 'icnf = ' eventList ;
 
 disa : 'disa = ' eventList ;
 
-alte : 'alte = ' '['? eventList ']'?;
+alte : 'alte = ' '['? eventList (',' eventList)* ']'?;
 
 evtr : 'evtr = (' proc ',' tr_id ',' acts ')' ;
 
