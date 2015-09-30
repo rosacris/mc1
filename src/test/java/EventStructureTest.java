@@ -13,7 +13,7 @@ public class EventStructureTest {
         EventStructure.Event root = es.getRoot();
         EventStructure.Event e1 = es.newEvent("e1").dependsOn(root);
         EventStructure.Event e2 = es.newEvent("e2").dependsOn(root);
-        EventStructure.Event e3 = es.newEvent("e3").dependsOn(e1).conflicts(e2);
+        EventStructure.Event e3 = es.newEvent("e3").dependsOn(e1).conflictsWith(e2);
         EventStructure.Event e4 = es.newEvent("e4").dependsOn(e3);
 
         System.out.println(es.toString());

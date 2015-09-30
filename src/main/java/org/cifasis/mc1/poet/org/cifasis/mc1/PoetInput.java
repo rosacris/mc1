@@ -40,16 +40,16 @@ public class PoetInput extends PoetBaseVisitor<EventStructure> {
             newEvent.dependsOn(predEvent);
         }
 
-        // Add conflicts
+        // Add conflictsWith
         for(TerminalNode conflictEventName : ctx.icnf().eventList().INT()) {
-            if (Integer.valueOf(conflictEventName.getText()) < Integer.valueOf(newEvent.getName())) {
+            if (Integer.valueOf(conflictEventName.getText()) < newEvent.getId()) {
                 EventStructure.Event conflictEvent = null;
                 if (conflictEventName.getText().equals("0"))
                     conflictEvent = eventStructure.getRoot();
                 else
                     conflictEvent = eventStructure.getEventByName(conflictEventName.getText());
 
-                newEvent.conflicts(conflictEvent);
+                newEvent.conflictsWith(conflictEvent);
             }
         }
 
