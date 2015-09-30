@@ -16,6 +16,8 @@ public class Algorithm1 {
     private final Set<EventStructure.Event> E;                    /* the set of events discovered by the algorithm. */
     private int lfsNumber = 0;
     private int numThreads = 0;
+    private int traceCount;                                       /* The number of explored traces */
+    private int traceSizeSum;                                     /* The sum of the sizes of all maximal traces */
 
     /**
      * Construct a new instance of the exploration algorithm for an event structure with a fixed number of threads
@@ -28,6 +30,8 @@ public class Algorithm1 {
         this.E = Sets.newTreeSet();
         E.add(es.getRoot());                   /* Add ⊥ to the set of discovered events */
         this.numThreads = numThreads;
+        this.traceCount = 0;
+        this.traceSizeSum = 0;
     }
 
     /**
@@ -40,10 +44,20 @@ public class Algorithm1 {
         this.es = es;
         this.E = Sets.newTreeSet();
         E.add(es.getRoot());                   /* Add ⊥ to the set of discovered events */
+        this.traceCount = 0;
+        this.traceSizeSum = 0;
     }
 
     public int getLfsNumber() {
         return lfsNumber;
+    }
+
+    public int getTraceCount() {
+        return this.traceCount;
+    }
+
+    public int getTraceSizeAvg() {
+        return traceSizeSum / traceCount;
     }
 
     /**
@@ -96,12 +110,14 @@ public class Algorithm1 {
                         lfsNumber = coneWidth;
                 }
             }
+            traceSizeSum += C.size();
+            traceCount++;
             return;
         }
 
         Set<EventStructure.Event> setE;
         if (!A.isEmpty()) {
-            setE = ImmutableSet.copyOf(Iterables.limit(Sets.intersection(es.getEnabled(C), A), 1));
+            setE = ImmutableSet.copyOf(Iterables.limit(Sets.intersection(A, es.getEnabled(C)), 1));
         } else {
             setE = ImmutableSet.copyOf(Iterables.limit(es.getEnabled(C), 1));
         }
