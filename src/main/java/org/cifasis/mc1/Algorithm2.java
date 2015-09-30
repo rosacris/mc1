@@ -1,5 +1,7 @@
 package org.cifasis.mc1;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import java.util.Collections;
@@ -16,6 +18,8 @@ public class Algorithm2 {
     private Set<EventStructure.Event> V;                          /* the set of visited events */
     private final Predicate<Set<EventStructure.Event>> contPred;  /* a predicate to decide the backtracking. */
     private final int lfsBound;
+    private int traceCount;                                       /* The number of explored traces */
+    private int traceSizeSum;                                     /* The sum of the sizes of all maximal traces */
 
     /**
      * Construct a new instance of the exploration algorithm for a given event structure using the supplied m and n
@@ -32,6 +36,7 @@ public class Algorithm2 {
         this.E = Sets.newHashSet(es.getRoot());                   /* Add ⊥ to the set of discovered events */
         this.V = Sets.newHashSet(es.getRoot());
         this.lfsBound = computeBound(m, n);
+        this.traceCount = 0;
     }
 
     /**
@@ -47,6 +52,7 @@ public class Algorithm2 {
         this.E = Sets.newHashSet(es.getRoot());                   /* Add ⊥ to the set of discovered events */
         this.V = Sets.newHashSet(es.getRoot());
         this.lfsBound = lfsBound;
+        this.traceCount = 0;
     }
 
     /**
@@ -72,8 +78,16 @@ public class Algorithm2 {
         return E;
     }
 
-    public Set<EventStructure.Event> getV(){
+    public Set<EventStructure.Event> getV() {
         return V;
+    }
+
+    public int getTraceCount() {
+        return this.traceCount;
+    }
+
+    public int getTraceSizeAvg() {
+        return traceSizeSum / traceCount;
     }
 
     /**
@@ -86,14 +100,22 @@ public class Algorithm2 {
     private Set<EventStructure.Event> searchAlt(final Set<EventStructure.Event> C, final Set<EventStructure.Event> D) {
         for (final EventStructure.Event event : Sets.difference(Sets.intersection(es.getEnabled(C), E), D)) {
             Set<EventStructure.Event> newC = Sets.union(C, Sets.newHashSet(event));
-            if (contPred.test(newC)) {
-                Set<EventStructure.Event> altConf = searchAlt(newC, D);
-                if (!Sets.difference(altConf, V).isEmpty()) {
-                    return altConf;
+            if (D.stream().allMatch(new Predicate<EventStructure.Event>() {
+                public boolean test(final EventStructure.Event eventD) {
+                    return newC.stream().anyMatch(new Predicate<EventStructure.Event>() {
+                        public boolean test(EventStructure.Event eventC) {
+                            return eventC.isInConflict(eventD);
+                        }
+                    });
                 }
+            })) {
+                return newC;
+
+            } else {
+                return searchAlt(newC, D);
             }
         }
-        return C;
+        return Sets.newHashSet();
     }
 
     /**
@@ -105,43 +127,35 @@ public class Algorithm2 {
      */
 
     public void explore(final Set<EventStructure.Event> C, final Set<EventStructure.Event> D, Set<EventStructure.Event> A) {
+
+        //System.out.println("C=" + C + " | D=" + D + " | A=" + A + " | en=" + es.getEnabled(C) + " | E=" + E);
+
         E.addAll(es.getExtensions(C));
 
-        if (!contPred.test(C)) {
-            System.out.println();
+        if (es.isMaximalConf(C)) {
+            traceSizeSum += C.size();
+            traceCount++;
+            //System.out.println();
             return;
         }
 
-        System.out.println("C=" + C + " | D=" + D + " | A=" + A + " | en=" + es.getEnabled(C) + " | E=" + E);
-
-        V.addAll(C);
-
-        Set<EventStructure.Event> enC = es.getEnabled(C);
-
-        if (Sets.difference(enC, D).isEmpty()) {
-            System.out.println();
-            return;
-        }
-
-        EventStructure.Event e;
+        Set<EventStructure.Event> eSet;
         if (!A.isEmpty()) {
-            e = Sets.intersection(enC, A).stream().sorted((e1, e2) -> Integer.compare(EventStructure.getEventDetph(C, e2), EventStructure.getEventDetph(C, e1))).findFirst().get();
+            eSet = ImmutableSet.copyOf(Iterables.limit(Sets.intersection(A, es.getEnabled(C)), 1));
         } else {
-            e = Sets.difference(enC, D).stream().sorted((e1, e2) -> Integer.compare(EventStructure.getEventDetph(C, e2), EventStructure.getEventDetph(C, e1))).findFirst().get();
+            eSet = ImmutableSet.copyOf(Iterables.limit(es.getEnabled(C), 1));
         }
 
-        Set<EventStructure.Event> eSet = Collections.singleton(e);
-        explore(Sets.union(C, eSet), D, Sets.difference(A, eSet));
+        Set<EventStructure.Event> newC = Sets.union(C, eSet);
 
-        Set<EventStructure.Event> altConf = searchAlt(C, Sets.union(D, eSet));
-        if (!Sets.difference(altConf, C).isEmpty()) {
-            explore(C, Sets.union(D, eSet), Sets.difference(altConf, C));
-        }
+        explore(newC, D, Sets.difference(A, eSet));
 
-        if (E.equals(V)) {
-            System.out.println("ES events count: " + es.getEventSet().size());
-            System.out.println("Visited events count: " + this.getV().size());
-            throw new RuntimeException();
+        V.add(eSet.iterator().next());
+
+        Set<EventStructure.Event> altConf = Sets.difference(searchAlt(C, Sets.union(D, eSet)), C);
+        if (!altConf.isEmpty()) {
+            if (Sets.intersection(altConf, V).isEmpty() || contPred.test(Sets.union(C, altConf)))
+                explore(C, Sets.union(D, eSet), altConf);
         }
     }
 
