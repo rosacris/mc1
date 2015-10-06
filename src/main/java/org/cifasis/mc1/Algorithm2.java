@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
-import java.util.Collections;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -25,10 +25,9 @@ public class Algorithm2 {
      * Construct a new instance of the exploration algorithm for a given event structure using the supplied m and n
      * parameters.
      *
-     * @param m        maximum parallel degree of the event structure
-     * @param n        communication degree of the event structure
-     * @param es
-     * @param lfsBound
+     * @param es the event structure
+     * @param m  maximum parallel degree of the event structure
+     * @param n  communication degree of the event structure
      */
     public Algorithm2(EventStructure es, int m, int n) {
         this.es = es;
@@ -42,9 +41,8 @@ public class Algorithm2 {
     /**
      * Construct a new instance of the exploration algorithm for a given event structure using the supplied bound.
      *
+     * @param es       the event structure
      * @param lfsBound LFS-number to use as bound
-     * @param es
-     * @param lfsBound
      */
     public Algorithm2(EventStructure es, int lfsBound) {
         this.es = es;
@@ -108,7 +106,7 @@ public class Algorithm2 {
                         }
                     });
                 }
-            })) {
+            }) && (!Sets.difference(newC, V).isEmpty() || contPred.test(newC))) {
                 return newC;
 
             } else {
@@ -128,14 +126,14 @@ public class Algorithm2 {
 
     public void explore(final Set<EventStructure.Event> C, final Set<EventStructure.Event> D, Set<EventStructure.Event> A) {
 
-        //System.out.println("C=" + C + " | D=" + D + " | A=" + A + " | en=" + es.getEnabled(C) + " | E=" + E);
+        System.out.println("C=" + C + " | D=" + D + " | A=" + A + " | en=" + es.getEnabled(C) + " | E=" + E);
 
         E.addAll(es.getExtensions(C));
 
         if (es.isMaximalConf(C)) {
             traceSizeSum += C.size();
             traceCount++;
-            //System.out.println();
+            System.out.println();
             return;
         }
 
@@ -143,19 +141,27 @@ public class Algorithm2 {
         if (!A.isEmpty()) {
             eSet = ImmutableSet.copyOf(Iterables.limit(Sets.intersection(A, es.getEnabled(C)), 1));
         } else {
-            eSet = ImmutableSet.copyOf(Iterables.limit(es.getEnabled(C), 1));
+            Optional<EventStructure.Event> e = es.getEnabled(C).stream().filter(event -> !V.contains(event) || contPred.test(Sets.union(C, Sets.newHashSet(event)))).findFirst();
+            if (e.isPresent())
+                eSet = ImmutableSet.of(e.get());
+            else {
+                traceSizeSum += C.size();
+                traceCount++;
+                System.out.println();
+                return;
+            }
         }
 
         Set<EventStructure.Event> newC = Sets.union(C, eSet);
 
-        explore(newC, D, Sets.difference(A, eSet));
-
         V.add(eSet.iterator().next());
+
+        explore(newC, D, Sets.difference(A, eSet));
 
         Set<EventStructure.Event> altConf = Sets.difference(searchAlt(C, Sets.union(D, eSet)), C);
         if (!altConf.isEmpty()) {
-            if (Sets.intersection(altConf, V).isEmpty() || contPred.test(Sets.union(C, altConf)))
-                explore(C, Sets.union(D, eSet), altConf);
+            //if (Sets.intersection(altConf, V).isEmpty() || contPred.test(Sets.union(C, altConf)))
+            explore(C, Sets.union(D, eSet), altConf);
         }
     }
 
