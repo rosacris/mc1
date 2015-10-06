@@ -28,11 +28,11 @@ public class Algorithm2Test {
         Set<EventStructure.Event> C = Sets.newTreeSet();
         C.add(es.getRoot());
         algorithm.explore(C, new TreeSet<EventStructure.Event>(), new TreeSet<EventStructure.Event>());
-        assert (es.getEventSet().size() == algorithm.getV().size());
         System.out.println("ES events count: " + es.getEventSet().size());
         System.out.println("Visited events count: " + algorithm.getV().size());
         System.out.println("Trace count: " + algorithm.getTraceCount());
         System.out.println("Trace size avg: " + algorithm.getTraceSizeAvg());
+        assert (es.getEventSet().size() == algorithm.getV().size());
         return algorithm;
     }
 
@@ -43,11 +43,11 @@ public class Algorithm2Test {
         Set<EventStructure.Event> C = Sets.newTreeSet();
         C.add(es.getRoot());
         algorithm.explore(C, new TreeSet<EventStructure.Event>(), new TreeSet<EventStructure.Event>());
-        assert (es.getEventSet().size() == algorithm.getV().size());
         System.out.println("ES events count: " + es.getEventSet().size());
         System.out.println("Visited events count: " + algorithm.getV().size());
         System.out.println("Trace count: " + algorithm.getTraceCount());
         System.out.println("Trace size avg: " + algorithm.getTraceSizeAvg());
+        assert (es.getEventSet().size() == algorithm.getV().size());
         return algorithm;
     }
 
@@ -159,7 +159,7 @@ public class Algorithm2Test {
         System.out.println();
         System.out.println("SSB3");
         EventStructure es = fromPoet("poet_ssb3.txt");
-        explore(es, 3);
+        explore(es, 4);
     }
 
     @Test
