@@ -2,8 +2,7 @@ import com.google.common.collect.Sets;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.cifasis.mc1.Algorithm1;
-import org.cifasis.mc1.EventStructure;
+import org.cifasis.mc1.*;
 import org.cifasis.mc1.PoetLexer;
 import org.cifasis.mc1.PoetParser;
 import org.cifasis.mc1.poet.org.cifasis.mc1.PoetInput;
@@ -22,24 +21,27 @@ import java.util.TreeSet;
 public class Algorithm1Test {
 
     private Algorithm1 explore(EventStructure es, int numThreads) {
-        System.out.println(es.toString());
+//        System.out.println(es.toString());
         Algorithm1 algorithm = new Algorithm1(es, numThreads);
-        Set<EventStructure.Event> C = Sets.newTreeSet();
+        Set<Event> C = Sets.newTreeSet();
         C.add(es.getRoot());
-        algorithm.explore(C, new TreeSet<EventStructure.Event>(), new TreeSet<EventStructure.Event>());
-        System.out.println("LFS-number=" + algorithm.getLfsNumber());
+        algorithm.explore(C, new TreeSet<Event>(), new TreeSet<Event>());
+        System.out.println("ES events count: " + es.getEventSet().size());
+        System.out.println("Visited events count: " + algorithm.getE().size());
+//        System.out.println("LFS-number=" + algorithm.getLfsNumber());
         System.out.println("Trace count: " + algorithm.getTraceCount());
         System.out.println("Trace size avg: " + algorithm.getTraceSizeAvg());
         return algorithm;
     }
 
     private Algorithm1 explore(EventStructure es) {
-        System.out.println(es.toString());
+//        System.out.println(es.toString());
         Algorithm1 algorithm = new Algorithm1(es);
-        Set<EventStructure.Event> C = Sets.newTreeSet();
+        Set<Event> C = Sets.newTreeSet();
         C.add(es.getRoot());
-        algorithm.explore(C, new TreeSet<EventStructure.Event>(), new TreeSet<EventStructure.Event>());
-        System.out.println("LFS-number=" + algorithm.getLfsNumber());
+        algorithm.explore(C, new TreeSet<Event>(), new TreeSet<Event>());
+        System.out.println("ES events count: " + es.getEventSet().size());
+        System.out.println("Visited events count: " + algorithm.getE().size());
         System.out.println("Trace count: " + algorithm.getTraceCount());
         System.out.println("Trace size avg: " + algorithm.getTraceSizeAvg());
         return algorithm;
@@ -62,14 +64,14 @@ public class Algorithm1Test {
         System.out.println();
         System.out.println("Test 1");
         EventStructure es = new EventStructure();
-        EventStructure.Event e1 = es.newEvent("1").dependsOn(es.getRoot());
-        EventStructure.Event e2 = es.newEvent("2").dependsOn(e1);
-        EventStructure.Event e3 = es.newEvent("3").dependsOn(es.getRoot()).conflictsWith(e1);
-        EventStructure.Event e4 = es.newEvent("4").dependsOn(e3);
-        EventStructure.Event e5 = es.newEvent("5").dependsOn(es.getRoot());
-        EventStructure.Event e6 = es.newEvent("6").dependsOn(e5);
-        EventStructure.Event e7 = es.newEvent("7").dependsOn(es.getRoot()).conflictsWith(e5);
-        EventStructure.Event e8 = es.newEvent("8").dependsOn(e7);
+        Event e1 = es.newEvent("1").dependsOn(es.getRoot());
+        Event e2 = es.newEvent("2").dependsOn(e1);
+        Event e3 = es.newEvent("3").dependsOn(es.getRoot()).conflictsWith(e1);
+        Event e4 = es.newEvent("4").dependsOn(e3);
+        Event e5 = es.newEvent("5").dependsOn(es.getRoot());
+        Event e6 = es.newEvent("6").dependsOn(e5);
+        Event e7 = es.newEvent("7").dependsOn(es.getRoot()).conflictsWith(e5);
+        Event e8 = es.newEvent("8").dependsOn(e7);
 
         explore(es, 4);
     }
@@ -79,10 +81,10 @@ public class Algorithm1Test {
         System.out.println();
         System.out.println("Test 2");
         EventStructure es = new EventStructure();
-        EventStructure.Event e1 = es.newEvent("1").dependsOn(es.getRoot());
-        EventStructure.Event e2 = es.newEvent("2").dependsOn(es.getRoot());
-        EventStructure.Event e3 = es.newEvent("3").dependsOn(es.getRoot());
-        EventStructure.Event e4 = es.newEvent("4").dependsOn(e2).dependsOn(e3);
+        Event e1 = es.newEvent("1").dependsOn(es.getRoot());
+        Event e2 = es.newEvent("2").dependsOn(es.getRoot());
+        Event e3 = es.newEvent("3").dependsOn(es.getRoot());
+        Event e4 = es.newEvent("4").dependsOn(e2).dependsOn(e3);
 
         explore(es, 3);
     }
@@ -92,11 +94,11 @@ public class Algorithm1Test {
         System.out.println();
         System.out.println("Test 3");
         EventStructure es = new EventStructure();
-        EventStructure.Event e1 = es.newEvent("1").dependsOn(es.getRoot());
-        EventStructure.Event e2 = es.newEvent("2").dependsOn(es.getRoot()).conflictsWith(e1);
-        EventStructure.Event e3 = es.newEvent("3").dependsOn(es.getRoot());
-        EventStructure.Event e4 = es.newEvent("4").dependsOn(es.getRoot()).conflictsWith(e3);
-        EventStructure.Event e5 = es.newEvent("5").dependsOn(e2).dependsOn(e3);
+        Event e1 = es.newEvent("1").dependsOn(es.getRoot());
+        Event e2 = es.newEvent("2").dependsOn(es.getRoot()).conflictsWith(e1);
+        Event e3 = es.newEvent("3").dependsOn(es.getRoot());
+        Event e4 = es.newEvent("4").dependsOn(es.getRoot()).conflictsWith(e3);
+        Event e5 = es.newEvent("5").dependsOn(e2).dependsOn(e3);
         explore(es, 2);
     }
 
@@ -105,14 +107,14 @@ public class Algorithm1Test {
         System.out.println();
         System.out.println("Double diamond");
         EventStructure es = new EventStructure();
-        EventStructure.Event e1 = es.newEvent("1").dependsOn(es.getRoot());
-        EventStructure.Event e2 = es.newEvent("2").dependsOn(es.getRoot());
-        EventStructure.Event e3 = es.newEvent("3").dependsOn(e1);
-        EventStructure.Event e4 = es.newEvent("4").dependsOn(e1);
-        EventStructure.Event e5 = es.newEvent("5").dependsOn(e2);
-        EventStructure.Event e6 = es.newEvent("6").dependsOn(e2);
-        EventStructure.Event e7 = es.newEvent("7").dependsOn(e3).dependsOn(e4);
-        EventStructure.Event e8 = es.newEvent("8").dependsOn(e5).dependsOn(e6);
+        Event e1 = es.newEvent("1").dependsOn(es.getRoot());
+        Event e2 = es.newEvent("2").dependsOn(es.getRoot());
+        Event e3 = es.newEvent("3").dependsOn(e1);
+        Event e4 = es.newEvent("4").dependsOn(e1);
+        Event e5 = es.newEvent("5").dependsOn(e2);
+        Event e6 = es.newEvent("6").dependsOn(e2);
+        Event e7 = es.newEvent("7").dependsOn(e3).dependsOn(e4);
+        Event e8 = es.newEvent("8").dependsOn(e5).dependsOn(e6);
         explore(es, 4);
     }
 
@@ -133,51 +135,68 @@ public class Algorithm1Test {
     }
 
 //    @Test
-//    public void ccnf9() throws IOException {
+//    public void ssbextra() throws IOException {
 //        System.out.println();
-//        System.out.println("CCNF9");
-//        EventStructure es = fromPoet("poet_ccnf9.txt");
+//        System.out.println("SSB-EXTRA-THREAD");
+//        EventStructure es = fromPoet("poet_ssb_extra_thread.txt");
 //        explore(es);
 //    }
 
-//    @Test
-//    public void ccnf17() throws IOException {
-//        System.out.println();
-//        System.out.println("CCNF17");
-//        EventStructure es = fromPoet("poet_ccnf17.txt");
-//        explore(es);
-//    }
+    @Test
+    public void ssb3() throws IOException {
+        System.out.println();
+        System.out.println("SSB3");
+        EventStructure es = fromPoet("poet_ssb3.txt");
+        explore(es);
+    }
+
+
+    @Test
+    public void ccnf9() throws IOException {
+        System.out.println();
+        System.out.println("CCNF9");
+        EventStructure es = fromPoet("poet_ccnf9.txt");
+        explore(es);
+    }
+
+    @Test
+    public void ccnf17() throws IOException {
+        System.out.println();
+        System.out.println("CCNF17");
+        EventStructure es = fromPoet("poet_ccnf17.txt");
+        explore(es);
+    }
 
     @Test
     public void pgsql() throws IOException {
         System.out.println();
         System.out.println("PGSQL");
         EventStructure es = fromPoet("poet_pgsql.txt");
-        explore(es, 3);
+        explore(es);
     }
 
-//    @Test
-//    public void szymanski() throws IOException {
-//        System.out.println();
-//        System.out.println("SZYMANSKI");
-//        EventStructure es = fromPoet("poet_szymanski.txt");
-//        explore(es);
-//    }
+    @Test
+    public void szymanski() throws IOException {
+        System.out.println();
+        System.out.println("SZYMANSKI");
+        EventStructure es = fromPoet("poet_szymanski.txt");
+        explore(es);
+    }
 
     @Test
     public void peterson() throws IOException {
         System.out.println();
         System.out.println("PETERSON");
         EventStructure es = fromPoet("poet_peterson.txt");
-        explore(es, 3);
+        explore(es);
     }
 
-//    @Test
-//    public void prodcons2() throws IOException {
-//        System.out.println();
-//        System.out.println("PRODCONS2");
-//        EventStructure es = fromPoet("poet_prodcons2.txt");
-//        explore(es);
-//    }
+    @Test
+    public void prodcons2() throws IOException {
+        System.out.println();
+        System.out.println("PRODCONS2");
+        EventStructure es = fromPoet("poet_prodcons2.txt");
+        explore(es);
+    }
 
 }

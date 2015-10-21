@@ -1,8 +1,6 @@
 package org.cifasis.mc1;
 
-import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -192,13 +190,26 @@ public class EventStructure {
      * Gets a set with the pairs of events that are in direct conflict
      * @return  a set with the pairs of events that are in direct conflict
      */
-    public Set<Map.Entry<Event, Event>> getDirectConflicts(final PrettyPrinter<Map.Entry<Event, Event>> prettyPrinter) {
-        return this.getEventSet().stream().map(
+    public Set<Map.Entry<Event, Event>> getDirectConflicts(final Set<Event> conf, final PrettyPrinter<Map.Entry<Event, Event>> prettyPrinter) {
+        return conf.stream().map(
                 event -> event.getDirectConflicts().stream().map(
                         eventConflict -> new AbstractMap.SimpleImmutableEntry<Event, Event>(event, eventConflict) {
                             @Override
                             public String toString() {
                                 return prettyPrinter.print(this);
+                            }
+
+                            @Override
+                            public boolean equals(Object o) {
+                                if(o instanceof Map.Entry)
+                                    return (this.getKey().equals(((Map.Entry<Event,Event>)o).getKey()) && this.getValue().equals(((Map.Entry<Event,Event>)o).getValue())) || (this.getKey().equals(((Map.Entry<Event,Event>)o).getValue()) && this.getValue().equals(((Map.Entry<Event,Event>)o).getKey()));
+                                else
+                                    return false;
+                            }
+
+                            @Override
+                            public int hashCode() {
+                                return super.hashCode();
                             }
                         })).flatMap(a -> a).collect(Collectors.toSet());
     }
@@ -207,9 +218,9 @@ public class EventStructure {
      * Gets a set with the pairs of events that are immediately dependent
      * @return  a set with the pairs of events that are immediately dependent
      */
-    public Set<Map.Entry<Event, Event>> getDirectDeps(final PrettyPrinter<Map.Entry<Event, Event>> prettyPrinter) {
-        return this.getEventSet().stream().map(
-                event -> event.getChilds().stream().map(
+    public Set<Map.Entry<Event, Event>> getDirectDeps(final Set<Event> conf, final PrettyPrinter<Map.Entry<Event, Event>> prettyPrinter) {
+        return conf.stream().map(
+                event -> event.getChilds().stream().filter( child -> conf.contains(child)).map(
                         eventChild -> new AbstractMap.SimpleImmutableEntry<Event, Event>(event, eventChild) {
                             @Override
                             public String toString() {
@@ -220,116 +231,19 @@ public class EventStructure {
 
     @Override
     public String toString() {
-        return "< = " + getDirectDeps(BASE_PRINTER) + " # = " + getDirectConflicts(BASE_PRINTER);
+        return "< = " + getDirectDeps(this.getEventSet(), BASE_PRINTER) + " # = " + getDirectConflicts(this.getEventSet(), BASE_PRINTER);
     }
 
-    public String toDot() {
+    public String toDot(Set<Event> conf) {
         String dotFormat = "strict digraph {\n\tsubgraph deps {\n";
-        for(Map.Entry<Event,Event> eventTuple: getDirectDeps(DOT_PRINTER)){
+        for(Map.Entry<Event,Event> eventTuple: getDirectDeps(conf, DOT_PRINTER)){
             dotFormat += "\t\t" + eventTuple.toString();
         }
         dotFormat += "\t}\n\tsubgraph conf {\n\t\tedge [dir=none, color=red]\n";
-        for(Map.Entry<Event,Event> eventTuple: getDirectConflicts(DOT_PRINTER)){
+        for(Map.Entry<Event,Event> eventTuple: getDirectConflicts(conf, DOT_PRINTER)){
             dotFormat += "\t\t" + eventTuple.toString();
         }
         return dotFormat + "\t}\n}";
     }
 
-    public static class Event implements Comparable<Event> {
-        private final int id;
-        private final List<Event> parents;
-        private final List<Event> childs;
-        private final Set<Event> conflicts;
-
-        public Event(int id) {
-            this.id = id;
-            this.parents = Lists.newArrayList();
-            this.childs = Lists.newArrayList();
-            this.conflicts = Sets.newHashSet();
-        }
-
-        public int getId() {
-            return id;
-        }
-
-        public List<Event> getParents() {
-            return parents;
-        }
-
-        public boolean isDependent(final Event that) {
-            return parents.contains(that) || parents.stream().anyMatch(new Predicate<Event>() {
-                public boolean test(Event event) {
-                    return event.isDependent(that);
-                }
-            });
-        }
-
-        public boolean isInDirectConflict(Event that) {
-            return conflicts.contains(that);
-        }
-
-        public boolean isInConflict(final Event that) {
-            return isInDirectConflict(that) || parents.stream().anyMatch(new Predicate<Event>() {
-                public boolean test(Event event) {
-                    return event.isInConflict(that);
-                }
-            });
-        }
-
-        public Event dependsOn(Event that) {
-            if (!that.isDependent(this) && !this.isInConflict(that)) {
-                that.childs.add(this);
-                this.parents.add(that);
-                return this;
-            } else {
-                throw new RuntimeException("Attempt to create a cyclic dependence.");
-            }
-        }
-
-        public Event conflictsWith(Event that) {
-            this.conflicts.add(that);
-            that.conflicts.add(this);
-            return this;
-        }
-
-        public Set<Event> getDirectConflicts() {
-            return conflicts;
-        }
-
-        public Set<Event> getCone() {
-            Set<Event> cone = Sets.newHashSet();
-            for (Event e : parents) {
-                cone.add(e);
-                cone.addAll(e.getCone());
-            }
-            return cone;
-        }
-
-        public List<Event> getChilds() {
-            return childs;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof Event)) return false;
-            Event event = (Event) o;
-            return Objects.equal(id, event.id);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hashCode(id);
-        }
-
-        @Override
-        public int compareTo(Event o) {
-            return Integer.compare(this.id, o.id);
-        }
-
-        @Override
-        public String toString() {
-            return String.valueOf(id);
-        }
-    }
 }

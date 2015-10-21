@@ -13,7 +13,7 @@ import java.util.function.Predicate;
 public class Algorithm1 {
 
     private final EventStructure es;                              /* the event structure to explore by the algorithm. */
-    private final Set<EventStructure.Event> E;                    /* the set of events discovered by the algorithm. */
+    private final Set<Event> E;                    /* the set of events discovered by the algorithm. */
     private int lfsNumber = 0;
     private int numThreads = 0;
     private int traceCount;                                       /* The number of explored traces */
@@ -48,6 +48,10 @@ public class Algorithm1 {
         this.traceSizeSum = 0;
     }
 
+    public Set<Event> getE() {
+        return E;
+    }
+
     public int getLfsNumber() {
         return lfsNumber;
     }
@@ -67,21 +71,23 @@ public class Algorithm1 {
      * @param D the set of disabled events that must not appear in the alternative.
      * @return a valid alternative configuration, or empty set if not found.
      */
-    private Set<EventStructure.Event> searchAlt(final Set<EventStructure.Event> C, final Set<EventStructure.Event> D) {
-        if (D.stream().allMatch(new Predicate<EventStructure.Event>() {
-            public boolean test(final EventStructure.Event eventD) {
-                return C.stream().anyMatch(new Predicate<EventStructure.Event>() {
-                    public boolean test(EventStructure.Event eventC) {
-                        return eventC.isInConflict(eventD);
-                    }
-                });
-            }
-        })) {
-            return C;
-        } else {
-            for (EventStructure.Event child : Sets.difference(es.getEnabled(C), D)) {
-                Set<EventStructure.Event> recCall = searchAlt(Sets.union(C, Sets.newHashSet(child)), D);
-                if (!recCall.isEmpty())
+    private Set<Event> searchAlt(final Set<Event> C, final Set<Event> D) {
+        for (final Event event : Sets.difference(Sets.intersection(es.getEnabled(C), E), D)) {
+            Set<Event> newC = Sets.union(C, Sets.newHashSet(event));
+            if (D.stream().allMatch(new Predicate<Event>() {
+                public boolean test(final Event eventD) {
+                    return newC.stream().anyMatch(new Predicate<Event>() {
+                        public boolean test(Event eventC) {
+                            return eventC.isInConflict(eventD);
+                        }
+                    });
+                }
+            })) {
+                return newC;
+
+            } else {
+                Set<Event> recCall = searchAlt(newC, D);
+                if(!recCall.isEmpty())
                     return recCall;
             }
         }
@@ -95,16 +101,16 @@ public class Algorithm1 {
      * @param D a set of disabled events.
      * @param A a set of events to steer the exploration.
      */
-    public void explore(final Set<EventStructure.Event> C, final Set<EventStructure.Event> D, Set<EventStructure.Event> A) {
+    public void explore(final Set<Event> C, final Set<Event> D, Set<Event> A) {
 
-        System.out.println("C=" + C + " | D=" + D + " | A=" + A);
+//        System.out.println("C=" + C + " | D=" + D + " | A=" + A);
 
         E.addAll(es.getExtensions(C));
 
         if (es.isMaximalConf(C)) {
             if (numThreads != 0) {
-                for (EventStructure.Event maximalEvent : EventStructure.getMaximalEvents(C)) {
-                    Set<EventStructure.Event> cone = maximalEvent.getCone();
+                for (Event maximalEvent : EventStructure.getMaximalEvents(C)) {
+                    Set<Event> cone = maximalEvent.getCone();
                     int coneWidth = EventStructure.getWidth(cone, numThreads);
                     if (lfsNumber < coneWidth)
                         lfsNumber = coneWidth;
@@ -115,18 +121,18 @@ public class Algorithm1 {
             return;
         }
 
-        Set<EventStructure.Event> setE;
+        Set<Event> setE;
         if (!A.isEmpty()) {
             setE = ImmutableSet.copyOf(Iterables.limit(Sets.intersection(A, es.getEnabled(C)), 1));
         } else {
             setE = ImmutableSet.copyOf(Iterables.limit(es.getEnabled(C), 1));
         }
 
-        Set<EventStructure.Event> newC = Sets.union(C, setE);
+        Set<Event> newC = Sets.union(C, setE);
 
         explore(newC, D, Sets.difference(A, setE));
 
-        Set<EventStructure.Event> altConf = searchAlt(C, Sets.union(D, setE));
+        Set<Event> altConf = searchAlt(C, Sets.union(D, setE));
         if (!altConf.isEmpty()) {
             explore(C, Sets.union(D, setE), Sets.difference(altConf, C));
         }

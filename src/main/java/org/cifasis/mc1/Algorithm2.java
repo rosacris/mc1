@@ -14,9 +14,9 @@ import java.util.function.Predicate;
 public class Algorithm2 {
 
     private final EventStructure es;                              /* the event structure to explore by the algorithm. */
-    private final Set<EventStructure.Event> E;                    /* the set of events discovered by the algorithm. */
-    private Set<EventStructure.Event> V;                          /* the set of visited events */
-    private final Predicate<Set<EventStructure.Event>> contPred;  /* a predicate to decide the backtracking. */
+    private final Set<Event> E;                    /* the set of events discovered by the algorithm. */
+    private Set<Event> V;                          /* the set of visited events */
+    private final Predicate<Set<Event>> contPred;  /* a predicate to decide the backtracking. */
     private final int lfsBound;
     private int traceCount;                                       /* The number of explored traces */
     private int traceSizeSum;                                     /* The sum of the sizes of all maximal traces */
@@ -56,8 +56,8 @@ public class Algorithm2 {
     /**
      * This predicate always continue.
      */
-    public static final Predicate<Set<EventStructure.Event>> ALWAYS_CONTINUE = new Predicate<Set<EventStructure.Event>>() {
-        public boolean test(Set<EventStructure.Event> conf) {
+    public static final Predicate<Set<Event>> ALWAYS_CONTINUE = new Predicate<Set<Event>>() {
+        public boolean test(Set<Event> conf) {
             return true;
         }
     };
@@ -65,18 +65,18 @@ public class Algorithm2 {
     /**
      * This predicate enforces a LFS-bound of max(C) <= lfsBound.
      */
-    public final Predicate<Set<EventStructure.Event>> LFS_BOUND = new Predicate<Set<EventStructure.Event>>() {
-        public boolean test(Set<EventStructure.Event> conf) {
+    public final Predicate<Set<Event>> LFS_BOUND = new Predicate<Set<Event>>() {
+        public boolean test(Set<Event> conf) {
 //            System.out.println("Continue?: " + conf + " , maximal: " + EventStructure.getMaximalEvents(conf));
             return EventStructure.getMaximalEvents(conf).size() <= lfsBound;
         }
     };
 
-    public Set<EventStructure.Event> getE() {
+    public Set<Event> getE() {
         return E;
     }
 
-    public Set<EventStructure.Event> getV() {
+    public Set<Event> getV() {
         return V;
     }
 
@@ -95,13 +95,13 @@ public class Algorithm2 {
      * @param D the set of disabled events that must not appear in the alternative.
      * @return a valid alternative configuration, or empty set if not found.
      */
-    private Set<EventStructure.Event> searchAlt(final Set<EventStructure.Event> C, final Set<EventStructure.Event> D) {
-        for (final EventStructure.Event event : Sets.difference(Sets.intersection(es.getEnabled(C), E), D)) {
-            Set<EventStructure.Event> newC = Sets.union(C, Sets.newHashSet(event));
-            if (D.stream().allMatch(new Predicate<EventStructure.Event>() {
-                public boolean test(final EventStructure.Event eventD) {
-                    return newC.stream().anyMatch(new Predicate<EventStructure.Event>() {
-                        public boolean test(EventStructure.Event eventC) {
+    private Set<Event> searchAlt(final Set<Event> C, final Set<Event> D) {
+        for (final Event event : Sets.difference(Sets.intersection(es.getEnabled(C), E), D)) {
+            Set<Event> newC = Sets.union(C, Sets.newHashSet(event));
+            if (D.stream().allMatch(new Predicate<Event>() {
+                public boolean test(final Event eventD) {
+                    return newC.stream().anyMatch(new Predicate<Event>() {
+                        public boolean test(Event eventC) {
                             return eventC.isInConflict(eventD);
                         }
                     });
@@ -110,7 +110,37 @@ public class Algorithm2 {
                 return newC;
 
             } else {
-                return searchAlt(newC, D);
+                Set<Event> recCall = searchAlt(newC, D);
+                if(!recCall.isEmpty())
+                    return recCall;
+            }
+        }
+        return Sets.newHashSet();
+    }
+
+    /**
+     * Search for alternative configurations that contain a given configuration and remain to be explored.
+     *
+     * @param C the configuration that must be contained by the alternative.
+     * @param D the set of disabled events that must not appear in the alternative.
+     * @return a valid alternative configuration, or empty set if not found.
+     */
+    private Set<Event> searchAlt2(final Set<Event> C, final Set<Event> D) {
+        for (final Event event : Sets.difference(Sets.intersection(es.getEnabled(C), E), D)) {
+            Set<Event> newC = Sets.union(C, Sets.newHashSet(event));
+            if (D.stream().allMatch(new Predicate<Event>() {
+                public boolean test(final Event eventD) {
+                    return newC.stream().anyMatch(new Predicate<Event>() {
+                        public boolean test(Event eventC) {
+                            return eventC.isInConflict(eventD);
+                        }
+                    });
+                }
+            }) && (!Sets.difference(newC, V).isEmpty() || contPred.test(newC))) {
+                return newC;
+
+            } else {
+                return searchAlt2(newC, D);
             }
         }
         return Sets.newHashSet();
@@ -124,41 +154,34 @@ public class Algorithm2 {
      * @param A a set of events to steer the exploration.
      */
 
-    public void explore(final Set<EventStructure.Event> C, final Set<EventStructure.Event> D, Set<EventStructure.Event> A) {
+    public void explore(final Set<Event> C, final Set<Event> D, Set<Event> A) {
 
-        System.out.println("C=" + C + " | D=" + D + " | A=" + A + " | en=" + es.getEnabled(C) + " | E=" + E);
+        //System.out.println("C=" + C + " | D=" + D + " | A=" + A + " | en=" + es.getEnabled(C) + " | E=" + E);
 
         E.addAll(es.getExtensions(C));
 
-        if (es.isMaximalConf(C)) {
-            traceSizeSum += C.size();
-            traceCount++;
-            System.out.println();
-            return;
-        }
-
-        Set<EventStructure.Event> eSet;
+        Set<Event> eSet;
         if (!A.isEmpty()) {
             eSet = ImmutableSet.copyOf(Iterables.limit(Sets.intersection(A, es.getEnabled(C)), 1));
         } else {
-            Optional<EventStructure.Event> e = es.getEnabled(C).stream().filter(event -> !V.contains(event) || contPred.test(Sets.union(C, Sets.newHashSet(event)))).findFirst();
-            if (e.isPresent())
+            Optional<Event> e = es.getEnabled(C).stream().filter(event -> !V.contains(event) || contPred.test(Sets.union(C, Sets.newHashSet(event)))).findFirst();
+            if (e.isPresent()) {
                 eSet = ImmutableSet.of(e.get());
-            else {
+            } else {
                 traceSizeSum += C.size();
                 traceCount++;
-                System.out.println();
+                //System.out.println();
                 return;
             }
         }
 
-        Set<EventStructure.Event> newC = Sets.union(C, eSet);
+        Set<Event> newC = Sets.union(C, eSet);
 
         V.add(eSet.iterator().next());
 
         explore(newC, D, Sets.difference(A, eSet));
 
-        Set<EventStructure.Event> altConf = Sets.difference(searchAlt(C, Sets.union(D, eSet)), C);
+        Set<Event> altConf = Sets.difference(searchAlt2(C, Sets.union(D, eSet)), C);
         if (!altConf.isEmpty()) {
             //if (Sets.intersection(altConf, V).isEmpty() || contPred.test(Sets.union(C, altConf)))
             explore(C, Sets.union(D, eSet), altConf);

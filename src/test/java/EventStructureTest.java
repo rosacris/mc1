@@ -1,4 +1,5 @@
 import com.google.common.collect.Sets;
+import org.cifasis.mc1.Event;
 import org.cifasis.mc1.EventStructure;
 import org.junit.Test;
 
@@ -10,11 +11,11 @@ public class EventStructureTest {
     @Test
     public void test1() {
         EventStructure es = new EventStructure();
-        EventStructure.Event root = es.getRoot();
-        EventStructure.Event e1 = es.newEvent("e1").dependsOn(root);
-        EventStructure.Event e2 = es.newEvent("e2").dependsOn(root);
-        EventStructure.Event e3 = es.newEvent("e3").dependsOn(e1).conflictsWith(e2);
-        EventStructure.Event e4 = es.newEvent("e4").dependsOn(e3);
+        Event root = es.getRoot();
+        Event e1 = es.newEvent("e1").dependsOn(root);
+        Event e2 = es.newEvent("e2").dependsOn(root);
+        Event e3 = es.newEvent("e3").dependsOn(e1).conflictsWith(e2);
+        Event e4 = es.newEvent("e4").dependsOn(e3);
 
         System.out.println(es.toString());
 
