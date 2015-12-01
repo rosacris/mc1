@@ -81,6 +81,12 @@ public class Event implements Comparable<Event> {
         return cone;
     }
 
+    public Set<Event> getPredecessors(){
+        Set<Event> pred = this.getCone();
+        pred.remove(this);
+        return pred;
+    }
+
     public List<Event> getChilds() {
         return childs;
     }
