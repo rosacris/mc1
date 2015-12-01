@@ -29,19 +29,11 @@ public class EventStructure {
     private static final Supplier<TreeSet<Map.Entry<Event, Event>>> TREE_SET_SUPPLIER =
             () -> new TreeSet<>(TUPPLE_ORDER);
 
-    private static final PrettyPrinter<Map.Entry<Event,Event>> BASE_PRINTER = new PrettyPrinter<Map.Entry<Event, Event>>() {
-        @Override
-        public String print(Map.Entry<Event, Event> tupple) {
-            return "(" + tupple.getKey() + "," + tupple.getValue() + ")";
-        }
-    };
+    private static final PrettyPrinter<Map.Entry<Event, Event>> BASE_PRINTER =
+            tupple -> "(" + tupple.getKey() + "," + tupple.getValue() + ")";
 
-    private static final PrettyPrinter<Map.Entry<Event,Event>> DOT_PRINTER = new PrettyPrinter<Map.Entry<Event, Event>>() {
-        @Override
-        public String print(Map.Entry<Event, Event> tupple) {
-            return  tupple.getKey() + "->" + tupple.getValue() + "\n";
-        }
-    };
+    private static final PrettyPrinter<Map.Entry<Event, Event>> DOT_PRINTER =
+            tupple -> tupple.getKey() + "->" + tupple.getValue() + "\n";
 
     public EventStructure() {
         this.eventSet = Maps.newHashMap();
@@ -50,13 +42,13 @@ public class EventStructure {
     }
 
     public static boolean isConf(Set<Event> events) {
-//        for (Event e : events) {
-//            if (!events.containsAll(e.getCone()))
-//                return false;
-//
-//            if (!Sets.intersection(e.getDirectConflicts(), events).isEmpty())
-//                return false;
-//        }
+        for (Event e : events) {
+            if (!events.containsAll(e.getCone()))
+                return false;
+
+            if (!Sets.intersection(e.getDirectConflicts(), events).isEmpty())
+                return false;
+        }
         return true;
     }
 
@@ -66,9 +58,9 @@ public class EventStructure {
         if (!EventStructure.isConf(conf))
             throw new RuntimeException("The argument is not a valid configuration.");
 
-        for(final Event e: conf) {
-            for(final Event child: e.getChilds()){
-                if(!conf.contains(child) && conf.containsAll(child.getParents()))
+        for (final Event e : conf) {
+            for (final Event child : e.getChilds()) {
+                if (!conf.contains(child) && conf.containsAll(child.getParents()))
                     extensions.add(child);
             }
         }
@@ -83,7 +75,7 @@ public class EventStructure {
             throw new RuntimeException("The argument is not a valid configuration.");
 
         for (final Event e : this.getExtensions(conf)) {
-            if(Sets.intersection(e.getDirectConflicts(), conf).isEmpty()) {
+            if (Sets.intersection(e.getDirectConflicts(), conf).isEmpty()) {
                 enabledEvents.add(e);
             }
         }
@@ -187,8 +179,17 @@ public class EventStructure {
     }
 
     /**
+     * Get the set of events that are in conflict with some other.
+     * @return  a set of events
+     */
+    public Set<Event> getConflictSet() {
+        return getEventSet().stream().filter(e -> !e.getDirectConflicts().isEmpty()).collect(Collectors.toSet());
+    }
+
+    /**
      * Gets a set with the pairs of events that are in direct conflict
-     * @return  a set with the pairs of events that are in direct conflict
+     *
+     * @return a set with the pairs of events that are in direct conflict
      */
     public Set<Map.Entry<Event, Event>> getDirectConflicts(final Set<Event> conf, final PrettyPrinter<Map.Entry<Event, Event>> prettyPrinter) {
         return conf.stream().map(
@@ -201,8 +202,8 @@ public class EventStructure {
 
                             @Override
                             public boolean equals(Object o) {
-                                if(o instanceof Map.Entry)
-                                    return (this.getKey().equals(((Map.Entry<Event,Event>)o).getKey()) && this.getValue().equals(((Map.Entry<Event,Event>)o).getValue())) || (this.getKey().equals(((Map.Entry<Event,Event>)o).getValue()) && this.getValue().equals(((Map.Entry<Event,Event>)o).getKey()));
+                                if (o instanceof Map.Entry)
+                                    return (this.getKey().equals(((Map.Entry<Event, Event>) o).getKey()) && this.getValue().equals(((Map.Entry<Event, Event>) o).getValue())) || (this.getKey().equals(((Map.Entry<Event, Event>) o).getValue()) && this.getValue().equals(((Map.Entry<Event, Event>) o).getKey()));
                                 else
                                     return false;
                             }
@@ -216,11 +217,12 @@ public class EventStructure {
 
     /**
      * Gets a set with the pairs of events that are immediately dependent
-     * @return  a set with the pairs of events that are immediately dependent
+     *
+     * @return a set with the pairs of events that are immediately dependent
      */
     public Set<Map.Entry<Event, Event>> getDirectDeps(final Set<Event> conf, final PrettyPrinter<Map.Entry<Event, Event>> prettyPrinter) {
         return conf.stream().map(
-                event -> event.getChilds().stream().filter( child -> conf.contains(child)).map(
+                event -> event.getChilds().stream().filter(child -> conf.contains(child)).map(
                         eventChild -> new AbstractMap.SimpleImmutableEntry<Event, Event>(event, eventChild) {
                             @Override
                             public String toString() {
@@ -236,14 +238,25 @@ public class EventStructure {
 
     public String toDot(Set<Event> conf) {
         String dotFormat = "strict digraph {\n\tsubgraph deps {\n";
-        for(Map.Entry<Event,Event> eventTuple: getDirectDeps(conf, DOT_PRINTER)){
+        for (Map.Entry<Event, Event> eventTuple : getDirectDeps(conf, DOT_PRINTER)) {
             dotFormat += "\t\t" + eventTuple.toString();
         }
         dotFormat += "\t}\n\tsubgraph conf {\n\t\tedge [dir=none, color=red]\n";
-        for(Map.Entry<Event,Event> eventTuple: getDirectConflicts(conf, DOT_PRINTER)){
+        for (Map.Entry<Event, Event> eventTuple : getDirectConflicts(conf, DOT_PRINTER)) {
             dotFormat += "\t\t" + eventTuple.toString();
         }
         return dotFormat + "\t}\n}";
+    }
+
+    /**
+     * Gets the set of events that succeed a given event in a configuration.
+     *
+     * @param conf the configuration
+     * @param e    the event
+     * @return a set of successor events
+     */
+    public static Set<Event> getSuccessors(Set<Event> conf, Event e) {
+        return conf.stream().filter(event -> event.isDependent(e)).collect(Collectors.toSet());
     }
 
 }
