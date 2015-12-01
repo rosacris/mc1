@@ -127,6 +127,14 @@ public class Algorithm1Test {
     }
 
     @Test
+    public void spin08() throws IOException {
+        System.out.println();
+        System.out.println("SPIN08");
+        EventStructure es = fromPoet("poet_spin08.txt");
+        explore(es);
+    }
+
+    @Test
     public void ssb() throws IOException {
         System.out.println();
         System.out.println("SSB");
@@ -142,6 +150,15 @@ public class Algorithm1Test {
 //        explore(es);
 //    }
 
+
+    @Test
+    public void ssb1() throws IOException {
+        System.out.println();
+        System.out.println("SSB1");
+        EventStructure es = fromPoet("poet_ssb1.txt");
+        explore(es);
+    }
+
     @Test
     public void ssb3() throws IOException {
         System.out.println();
@@ -149,7 +166,6 @@ public class Algorithm1Test {
         EventStructure es = fromPoet("poet_ssb3.txt");
         explore(es);
     }
-
 
     @Test
     public void ccnf9() throws IOException {
@@ -168,10 +184,10 @@ public class Algorithm1Test {
     }
 
     @Test
-    public void pgsql() throws IOException {
+    public void ccnf19() throws IOException {
         System.out.println();
-        System.out.println("PGSQL");
-        EventStructure es = fromPoet("poet_pgsql.txt");
+        System.out.println("CCNF19");
+        EventStructure es = fromPoet("poet_ccnf19.txt");
         explore(es);
     }
 
@@ -180,6 +196,14 @@ public class Algorithm1Test {
         System.out.println();
         System.out.println("SZYMANSKI");
         EventStructure es = fromPoet("poet_szymanski.txt");
+        explore(es);
+    }
+
+    @Test
+    public void pgsql() throws IOException {
+        System.out.println();
+        System.out.println("PGSQL");
+        EventStructure es = fromPoet("poet_pgsql.txt");
         explore(es);
     }
 
