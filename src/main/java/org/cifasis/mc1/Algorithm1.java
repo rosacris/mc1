@@ -4,8 +4,10 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Set;
-import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Created by Cristian on 22/07/15.
@@ -23,7 +25,6 @@ public class Algorithm1 {
      * Construct a new instance of the exploration algorithm for an event structure with a fixed number of threads
      *
      * @param es
-     * @param contPred
      */
     public Algorithm1(EventStructure es, int numThreads) {
         this.es = es;
@@ -38,7 +39,6 @@ public class Algorithm1 {
      * Construct a new instance of the exploration algorithm for an event structure with a fixed number of threads
      *
      * @param es
-     * @param contPred
      */
     public Algorithm1(EventStructure es) {
         this.es = es;
@@ -69,29 +69,33 @@ public class Algorithm1 {
      *
      * @param C the configuration that must be contained by the alternative.
      * @param D the set of disabled events that must not appear in the alternative.
+     * @param A the set of old alternatives from which event was selected.
+     * @param event the event entering D from C
      * @return a valid alternative configuration, or empty set if not found.
      */
-    private Set<Event> searchAlt(final Set<Event> C, final Set<Event> D) {
-        for (final Event event : Sets.difference(Sets.intersection(es.getEnabled(C), E), D)) {
-            Set<Event> newC = Sets.union(C, Sets.newHashSet(event));
-            if (D.stream().allMatch(new Predicate<Event>() {
-                public boolean test(final Event eventD) {
-                    return newC.stream().anyMatch(new Predicate<Event>() {
-                        public boolean test(Event eventC) {
-                            return eventC.isInConflict(eventD);
-                        }
-                    });
-                }
-            })) {
-                return newC;
+    private Set<Event> searchAlt(final Set<Event> C, final Set<Event> D, final Set<Event> A, final Event event) {
 
-            } else {
-                Set<Event> recCall = searchAlt(newC, D);
-                if(!recCall.isEmpty())
-                    return recCall;
-            }
-        }
-        return Sets.newHashSet();
+
+        // Set of events to justify (e and the direct conflicts of e in D).
+        Set<Event> toJustifyFromEvent = Sets.union(Sets.intersection(event.getDirectConflicts(), D), ImmutableSet.of(event));
+
+        Set<Event> toJustifyFromA = D.stream().filter(d -> !Sets.intersection(A, d.getDirectConflicts()).isEmpty()).collect(Collectors.toSet());
+
+        Set<Event> eventsToJustify = Sets.union(toJustifyFromEvent, toJustifyFromA);
+
+        // List of event sets from which the alternative must be computed (if exists).
+        List<Set<Event>> conflictVectors = eventsToJustify.stream().distinct().map(
+                e -> e.getDirectConflicts().stream().filter(eConfl -> !D.contains(eConfl)).collect(Collectors.toSet())
+        ).collect(Collectors.toList());
+
+        // Alternatives computation
+        return Sets.cartesianProduct(conflictVectors).stream().map(
+                eventList -> eventList.stream().map(Event::getCone).flatMap(Collection::stream).collect(Collectors.toSet())
+        ).filter(alternative -> Sets.intersection(D, alternative).isEmpty()
+                && EventStructure.isConf(Sets.union(C, alternative))
+                && D.stream().allMatch(
+                    d -> !Sets.intersection(Sets.union(C, alternative), d.getDirectConflicts()).isEmpty()
+                )).findFirst().orElse(Sets.newHashSet());
     }
 
     /**
@@ -118,6 +122,7 @@ public class Algorithm1 {
             }
             traceSizeSum += C.size();
             traceCount++;
+
             return;
         }
 
@@ -132,7 +137,7 @@ public class Algorithm1 {
 
         explore(newC, D, Sets.difference(A, setE));
 
-        Set<Event> altConf = searchAlt(C, Sets.union(D, setE));
+        Set<Event> altConf = searchAlt(C, Sets.union(D, setE), A, setE.iterator().next());
         if (!altConf.isEmpty()) {
             explore(C, Sets.union(D, setE), Sets.difference(altConf, C));
         }
