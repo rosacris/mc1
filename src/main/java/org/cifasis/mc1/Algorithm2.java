@@ -3,6 +3,7 @@ package org.cifasis.mc1;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import jdk.nashorn.internal.runtime.options.Option;
 
 import java.util.Collection;
 import java.util.List;
@@ -100,7 +101,7 @@ public class Algorithm2 {
      * @param event the event entering D from C
      * @return a valid alternative configuration, or empty set if not found.
      */
-    private Set<Event> searchAlt(final Set<Event> C, final Set<Event> D, final Set<Event> A, final Event event) {
+    private Set<Set<Event>> searchAlt(final Set<Event> C, final Set<Event> D, final Set<Event> A, final Event event) {
 
 
         // Set of events to justify (e and the direct conflicts of e in D).
@@ -109,6 +110,7 @@ public class Algorithm2 {
         Set<Event> toJustifyFromA = D.stream().filter(d -> !Sets.intersection(A, d.getDirectConflicts()).isEmpty()).collect(Collectors.toSet());
 
         Set<Event> eventsToJustify = Sets.union(toJustifyFromEvent, toJustifyFromA);
+
 
         // List of event sets from which the alternative must be computed (if exists).
         List<Set<Event>> conflictVectors = eventsToJustify.stream().distinct().map(
@@ -122,7 +124,7 @@ public class Algorithm2 {
                 && EventStructure.isConf(Sets.union(C, alternative))
                 && D.stream().allMatch(
                 d -> !Sets.intersection(Sets.union(C, alternative), d.getDirectConflicts()).isEmpty()
-        )).findFirst().orElse(Sets.newHashSet());
+        )).collect(Collectors.toSet());
     }
 
     /**
@@ -140,10 +142,10 @@ public class Algorithm2 {
         E.addAll(es.getExtensions(C));
 
         Set<Event> eSet;
-        if (!A.isEmpty()) {
+        if (!A.isEmpty() && !Sets.difference(A, V).isEmpty()) {
             eSet = ImmutableSet.copyOf(Iterables.limit(Sets.intersection(A, es.getEnabled(C)), 1));
         } else {
-            Optional<Event> e = es.getEnabled(C).stream().filter(event -> !V.contains(event) || contPred.test(Sets.union(C, Sets.newHashSet(event)))).findFirst();
+            Optional<Event> e = es.getEnabled(C).stream().filter(event -> !D.contains(event) && (!V.contains(event) || contPred.test(Sets.union(C, Sets.newHashSet(event))))).findFirst();
             if (e.isPresent()) {
                 eSet = ImmutableSet.of(e.get());
             } else {
@@ -160,8 +162,14 @@ public class Algorithm2 {
 
         explore(newC, D, Sets.difference(A, eSet));
 
-        Set<Event> altConf = searchAlt(C, Sets.union(D, eSet), A, eSet.iterator().next());
-        if (!altConf.isEmpty()) {
+        // Look for alternatives to the actual configuration
+        Set<Set<Event>> alternatives = searchAlt(C, Sets.union(D, eSet), A, eSet.iterator().next());
+
+        // Get an alternative that stays in the bound or that it contains unvisited events.
+        Set<Event> altConf = alternatives.stream().filter(contPred::test).findFirst().orElse(
+            alternatives.stream().filter(alt -> !Sets.difference(alt, V).isEmpty()).findFirst().orElse(null));
+
+        if (altConf != null) {
             explore(C, Sets.union(D, eSet), Sets.difference(altConf, C));
         }
     }
