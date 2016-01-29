@@ -67,9 +67,9 @@ public class Algorithm1 {
     /**
      * Search for alternative configurations that contain a given configuration and remain to be explored.
      *
-     * @param C the configuration that must be contained by the alternative.
-     * @param D the set of disabled events that must not appear in the alternative.
-     * @param A the set of old alternatives from which event was selected.
+     * @param C     the configuration that must be contained by the alternative.
+     * @param D     the set of disabled events that must not appear in the alternative.
+     * @param A     the set of old alternatives from which event was selected.
      * @param event the event entering D from C
      * @return a valid alternative configuration, or empty set if not found.
      */
@@ -94,8 +94,35 @@ public class Algorithm1 {
         ).filter(alternative -> Sets.intersection(D, alternative).isEmpty()
                 && EventStructure.isConf(Sets.union(C, alternative))
                 && D.stream().allMatch(
-                    d -> !Sets.intersection(Sets.union(C, alternative), d.getDirectConflicts()).isEmpty()
-                )).findFirst().orElse(Sets.newHashSet());
+                d -> !Sets.intersection(Sets.union(C, alternative), d.getDirectConflicts()).isEmpty()
+        )).findFirst().orElse(Sets.newHashSet());
+    }
+
+    /**
+     * Compute the set of events to preserve on remove
+     */
+    private Set<Event> getPreserveSet(Set<Event> C, Set<Event> D) {
+        Set<Event> preserve = Sets.union(C, D).stream().map(e -> Sets.intersection(e.getDirectConflicts(), E)).
+                flatMap(Collection::stream).map(Event::getCone).flatMap(Collection::stream).collect(Collectors.toSet());
+        return Sets.union(Sets.union(C, D), preserve);
+    }
+
+    /**
+     * Remove explored events that no longer are needed
+     *
+     * @param eSet a singleton set containing the event to remove
+     * @param C    a configuration
+     * @param D    a set of disabled events
+     */
+    private void remove(Set<Event> eSet, Set<Event> C, Set<Event> D) {
+        Set<Event> preserveSet = getPreserveSet(C, D);
+        // Remove e from E if it is not contained in the preserve set
+        E.removeAll(Sets.difference(eSet, preserveSet));
+
+        // Remove all direct conflicts of e and their cones from the preserve set
+        for (Event c : eSet.iterator().next().getDirectConflicts()) {     // eSet is a singleton set
+            E.removeAll(Sets.difference(c.getCone(), preserveSet));
+        }
     }
 
     /**
@@ -126,20 +153,21 @@ public class Algorithm1 {
             return;
         }
 
-        Set<Event> setE;
+        Set<Event> eSet;
         if (!A.isEmpty()) {
-            setE = ImmutableSet.copyOf(Iterables.limit(Sets.intersection(A, es.getEnabled(C)), 1));
+            eSet = ImmutableSet.copyOf(Iterables.limit(Sets.intersection(A, es.getEnabled(C)), 1));
         } else {
-            setE = ImmutableSet.copyOf(Iterables.limit(es.getEnabled(C), 1));
+            eSet = ImmutableSet.copyOf(Iterables.limit(es.getEnabled(C), 1));
         }
 
-        Set<Event> newC = Sets.union(C, setE);
+        Set<Event> newC = Sets.union(C, eSet);
 
-        explore(newC, D, Sets.difference(A, setE));
+        explore(newC, D, Sets.difference(A, eSet));
 
-        Set<Event> altConf = searchAlt(C, Sets.union(D, setE), A, setE.iterator().next());
+        Set<Event> altConf = searchAlt(C, Sets.union(D, eSet), A, eSet.iterator().next());
         if (!altConf.isEmpty()) {
-            explore(C, Sets.union(D, setE), Sets.difference(altConf, C));
+            explore(C, Sets.union(D, eSet), Sets.difference(altConf, C));
         }
+        remove(eSet, C, D);
     }
 }
