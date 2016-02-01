@@ -20,10 +20,12 @@ public class Algorithm2 {
     private final EventStructure es;                              /* the event structure to explore by the algorithm. */
     private final Set<Event> E;                    /* the set of events discovered by the algorithm. */
     private Set<Event> V;                          /* the set of visited events */
+    private Set<Event> Vtest;                      /* this variable is just used for testing porpouses */
     private final Predicate<Set<Event>> contPred;  /* a predicate to decide the backtracking. */
     private final int lfsBound;
     private int traceCount;                                       /* The number of explored traces */
     private int traceSizeSum;                                     /* The sum of the sizes of all maximal traces */
+    private List visitedRatio;                           /* keep track of the ratio between the whole set of visited events and the ones we keep in V when a maximal conf is reached */
 
     /**
      * Construct a new instance of the exploration algorithm for a given event structure using the supplied m and n
@@ -38,8 +40,10 @@ public class Algorithm2 {
         this.contPred = LFS_BOUND;
         this.E = Sets.newHashSet(es.getRoot());                   /* Add ⊥ to the set of discovered events */
         this.V = Sets.newHashSet(es.getRoot());
+        this.Vtest = Sets.newHashSet(es.getRoot());
         this.lfsBound = computeBound(m, n);
         this.traceCount = 0;
+        this.visitedRatio = new java.util.ArrayList();
     }
 
     /**
@@ -53,8 +57,10 @@ public class Algorithm2 {
         this.contPred = LFS_BOUND;
         this.E = Sets.newHashSet(es.getRoot());                   /* Add ⊥ to the set of discovered events */
         this.V = Sets.newHashSet(es.getRoot());
+        this.Vtest = Sets.newHashSet(es.getRoot());
         this.lfsBound = lfsBound;
         this.traceCount = 0;
+        this.visitedRatio = new java.util.ArrayList();
     }
 
     /**
@@ -80,8 +86,8 @@ public class Algorithm2 {
         return E;
     }
 
-    public Set<Event> getV() {
-        return V;
+    public Set<Event> getVtest() {
+        return Vtest;
     }
 
     public int getTraceCount() {
@@ -91,6 +97,8 @@ public class Algorithm2 {
     public int getTraceSizeAvg() {
         return traceSizeSum / traceCount;
     }
+
+    public List getVisitedRatio() { return visitedRatio; }
 
     /**
      * Search for alternative configurations that contain a given configuration and remain to be explored.
@@ -151,6 +159,7 @@ public class Algorithm2 {
             } else {
                 traceSizeSum += C.size();
                 traceCount++;
+                visitedRatio.add((float) V.size() / Vtest.size());
                 //System.out.println();
                 return;
             }
@@ -159,6 +168,7 @@ public class Algorithm2 {
         Set<Event> newC = Sets.union(C, eSet);
 
         V.add(eSet.iterator().next());
+        Vtest.add(eSet.iterator().next());
 
         explore(newC, D, Sets.difference(A, eSet));
 
@@ -170,8 +180,12 @@ public class Algorithm2 {
             alternatives.stream().filter(alt -> !Sets.difference(alt, V).isEmpty()).findFirst().orElse(null));
 
         if (altConf != null) {
+            Set<Event> toRemove = Sets.union(D, eSet).stream().map(event -> es.getSuccessors(V, event)).flatMap(Collection::stream).collect(Collectors.toSet());;
+//            Set<Event> toRemove = es.getSuccessors(V2, eSet.iterator().next());
+            V.removeAll(toRemove);
             explore(C, Sets.union(D, eSet), Sets.difference(altConf, C));
         }
+
     }
 
     public static int computeBound(int m, int n) {

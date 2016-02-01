@@ -28,10 +28,11 @@ public class Algorithm2Test {
         C.add(es.getRoot());
         algorithm.explore(C, new TreeSet<Event>(), new TreeSet<Event>());
         System.out.println("ES events count: " + es.getEventSet().size());
-        System.out.println("Visited events count: " + algorithm.getV().size());
+        System.out.println("Visited events count: " + algorithm.getVtest().size());
         System.out.println("Trace count: " + algorithm.getTraceCount());
         System.out.println("Trace size avg: " + algorithm.getTraceSizeAvg());
-        assert (es.getEventSet().size() == algorithm.getV().size());
+        System.out.println("Visited: " + algorithm.getVisitedRatio());
+        assert (es.getEventSet().size() == algorithm.getVtest().size());
         return algorithm;
     }
 
@@ -43,10 +44,11 @@ public class Algorithm2Test {
         C.add(es.getRoot());
         algorithm.explore(C, new TreeSet<Event>(), new TreeSet<Event>());
         System.out.println("ES events count: " + es.getEventSet().size());
-        System.out.println("Visited events count: " + algorithm.getV().size());
+        System.out.println("Visited events count: " + algorithm.getVtest().size());
         System.out.println("Trace count: " + algorithm.getTraceCount());
         System.out.println("Trace size avg: " + algorithm.getTraceSizeAvg());
-       // assert (es.getEventSet().size() == algorithm.getV().size());
+        System.out.println("Visited: " + algorithm.getVisitedRatio());
+        assert (es.getEventSet().size() == algorithm.getVtest().size());
         return algorithm;
     }
 
